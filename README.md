@@ -90,6 +90,22 @@
 
 后端统一代理模型请求，前端不直接接触 API Key。
 
+## API 配置
+
+本项目调用比赛专属 `tju-llm` API。实际开发时在本地创建 `.env` 文件，参考 `.env.example`：
+
+```env
+TJU_LLM_API_URL=https://ai.tju.edu.cn/api/agent2026/gitlab-42-agent2026-interview-agent/chat/completions
+TJU_LLM_API_KEY=replace_with_your_api_key
+TJU_LLM_MODEL=tju-llm
+```
+
+注意：
+
+- `.env` 已加入 `.gitignore`，不要提交。
+- API Key 不要写进 README、代码、截图或演示视频。
+- 如果 API Key 曾公开发送，建议尽快在平台重置。
+
 ## 仓库与分支
 
 学校 GitLab 是比赛正式提交仓库：
@@ -153,4 +169,3 @@ git push github
 项目正在开发中，当前重点是先完成最小可用闭环：
 
 > 选择训练模式 -> AI 提问 -> 用户回答 -> AI 追问 -> 生成复盘报告
-
