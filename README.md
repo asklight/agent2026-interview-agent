@@ -1,93 +1,156 @@
 # agent2026-interview-agent
 
+## 项目简介
 
+`agent2026-interview-agent` 是面向天津大学学生就业实习场景的 Java 后端技术面试训练智能体。
 
-## Getting started
+项目目标不是做一个普通问答机器人，而是模拟真实 Java 后端技术面试流程，围绕用户回答进行追问、评分和复盘，帮助准备软件岗实习、秋招和春招的同学系统训练面试能力。
 
-To make it easy for you to get started with GitLab, here's a list of recommended next steps.
+中文产品名暂定为：**北洋 Java 面试官**。
 
-Already a pro? Just edit this README.md and make it your own. Want to make it easy? [Use the template at the bottom](#editing-this-readme)!
+## 参赛信息
 
-## Add your files
+本项目用于参加“实事求智-创见未来”天津大学 AI 智能体大赛技术实现赛道。
 
-* [Create](https://docs.gitlab.com/user/project/repository/web_editor/#create-a-file) or [upload](https://docs.gitlab.com/user/project/repository/web_editor/#upload-a-file) files
-* [Add files using the command line](https://docs.gitlab.com/topics/git/add_files/#add-files-to-a-git-repository) or push an existing Git repository with the following command:
+技术实现赛道要求注意：
 
+- 仓库名使用 `agent2026-` 前缀。
+- 以天津大学 GitLab 作为正式提交平台。
+- 所有大模型调用走比赛分配的专属 `tju-llm` API 地址。
+- API Key 不得提交到代码仓库。
+- 开发完成后学校 GitLab 仓库应设置为内部可见，方便校内用户体验和评价。
+
+## 核心功能规划
+
+### Java 核心知识面试
+
+围绕 Java 后端高频知识进行模拟面试，不是简单刷题。
+
+首发模块包括：
+
+- Java 基础与集合
+- JVM
+- Java 并发
+- MySQL
+- Redis
+- Spring / Spring Boot
+- 计算机网络
+- 操作系统
+
+系统会根据用户回答决定是否继续追问、提示、换题或结束当前问题。
+
+### 项目经历深挖
+
+用户可以粘贴自己的项目经历或简历片段，系统根据技术栈、个人职责和项目亮点进行追问。
+
+示例追问方向：
+
+- 为什么使用某个技术组件？
+- 数据库表结构如何设计？
+- 缓存和数据库如何保持一致？
+- 如果访问量上升，系统瓶颈在哪里？
+- 项目中哪些部分由用户本人完成？
+
+### 算法思维面试
+
+第一版不做在线判题系统，而是做面试口述型算法训练。
+
+系统关注：
+
+- 解题思路
+- 时间复杂度
+- 空间复杂度
+- 边界情况
+- Java 代码或伪代码表达
+
+### 综合模拟面试
+
+组合项目经历、Java 核心知识和算法思维，模拟一场完整 Java 后端技术一面。
+
+### 结构化复盘报告
+
+每次训练结束后生成复盘报告，包括：
+
+- 总分
+- 各模块分数
+- 答得好的点
+- 漏掉的关键点
+- 面试风险表达
+- 下一轮训练建议
+- 推荐补强题目
+
+## 技术栈
+
+本项目确定使用：
+
+- 后端：Spring Boot
+- 前端：Vue 3 + TypeScript
+- 数据库：MySQL
+- 大模型：比赛专属 `tju-llm` API
+
+后端统一代理模型请求，前端不直接接触 API Key。
+
+## 仓库与分支
+
+学校 GitLab 是比赛正式提交仓库：
+
+- 远程名：`origin`
+- 分支：`main`
+
+GitHub 作为同步备份仓库：
+
+- 远程名：`github`
+- 分支：`master`
+
+常用推送命令：
+
+```bash
+git push
+git push github
 ```
-cd existing_repo
-git remote add origin https://gitlab.tju.edu.cn/3023208139/agent2026-interview-agent.git
-git branch -M main
-git push -uf origin main
-```
 
-## Integrate with your tools
+## 当前阶段
 
-* [Set up project integrations](https://gitlab.tju.edu.cn/3023208139/agent2026-interview-agent/-/settings/integrations)
+当前项目处于设计和基础开发准备阶段。
 
-## Collaborate with your team
+已完成：
 
-* [Invite team members and collaborators](https://docs.gitlab.com/user/project/members/)
-* [Create a new merge request](https://docs.gitlab.com/user/project/merge_requests/creating_merge_requests/)
-* [Automatically close issues from merge requests](https://docs.gitlab.com/user/project/issues/managing_issues/#closing-issues-automatically)
-* [Enable merge request approvals](https://docs.gitlab.com/user/project/merge_requests/approvals/)
-* [Set auto-merge](https://docs.gitlab.com/user/project/merge_requests/auto_merge/)
+- 项目方向确认
+- 技术栈确认
+- 中文项目设计文档
+- 开发路线图
+- 周报模板
+- GitLab 与 GitHub 远程仓库配置
 
-## Test and Deploy
+下一阶段：
 
-Use the built-in continuous integration in GitLab.
+- 初始化 Spring Boot 后端项目
+- 初始化 Vue 3 前端项目
+- 配置 MySQL
+- 验证 `tju-llm` API 调用
+- 建立第一批 Java 核心知识题卡
 
-* [Get started with GitLab CI/CD](https://docs.gitlab.com/ci/quick_start/)
-* [Analyze your code for known vulnerabilities with Static Application Security Testing (SAST)](https://docs.gitlab.com/user/application_security/sast/)
-* [Deploy to Kubernetes, Amazon EC2, or Amazon ECS using Auto Deploy](https://docs.gitlab.com/topics/autodevops/requirements/)
-* [Use pull-based deployments for improved Kubernetes management](https://docs.gitlab.com/user/clusters/agent/)
-* [Set up protected environments](https://docs.gitlab.com/ci/environments/protected_environments/)
+## 文档
 
-***
+项目文档位于 `docs/` 目录：
 
-# Editing this README
+- `docs/项目设计.md`：项目定位、功能设计、技术架构和比赛规则适配。
+- `docs/开发路线图.md`：从 2026 年 7 月到提交截止前的开发计划。
+- `docs/周报模板.md`：每周开发总结模板。
 
-When you're ready to make this README your own, just edit this file and use the handy template below (or feel free to structure it however you want - this is just a starting point!). Thanks to [makeareadme.com](https://www.makeareadme.com/) for this template.
+## 安全与合规
 
-## Suggestions for a good README
+开发时必须遵守：
 
-Every project is different, so consider which of these sections apply to yours. The sections used in the template are suggestions for most open source projects. Also keep in mind that while a README can be too long and detailed, too long is better than too short. If you think your README is too long, consider utilizing another form of documentation rather than cutting out information.
+- 不提交 API Key。
+- 不提交 `.env` 文件。
+- 不直接复制商业题库或培训机构资料。
+- 用户输入简历或项目经历时，应提示删除敏感个人信息。
+- 如果实现语音输入，不保存原始音频。
 
-## Name
-Choose a self-explaining name for your project.
+## 项目状态
 
-## Description
-Let people know what your project can do specifically. Provide context and add a link to any reference visitors might be unfamiliar with. A list of Features or a Background subsection can also be added here. If there are alternatives to your project, this is a good place to list differentiating factors.
+项目正在开发中，当前重点是先完成最小可用闭环：
 
-## Badges
-On some READMEs, you may see small images that convey metadata, such as whether or not all the tests are passing for the project. You can use Shields to add some to your README. Many services also have instructions for adding a badge.
+> 选择训练模式 -> AI 提问 -> 用户回答 -> AI 追问 -> 生成复盘报告
 
-## Visuals
-Depending on what you are making, it can be a good idea to include screenshots or even a video (you'll frequently see GIFs rather than actual videos). Tools like ttygif can help, but check out Asciinema for a more sophisticated method.
-
-## Installation
-Within a particular ecosystem, there may be a common way of installing things, such as using Yarn, NuGet, or Homebrew. However, consider the possibility that whoever is reading your README is a novice and would like more guidance. Listing specific steps helps remove ambiguity and gets people to using your project as quickly as possible. If it only runs in a specific context like a particular programming language version or operating system or has dependencies that have to be installed manually, also add a Requirements subsection.
-
-## Usage
-Use examples liberally, and show the expected output if you can. It's helpful to have inline the smallest example of usage that you can demonstrate, while providing links to more sophisticated examples if they are too long to reasonably include in the README.
-
-## Support
-Tell people where they can go to for help. It can be any combination of an issue tracker, a chat room, an email address, etc.
-
-## Roadmap
-If you have ideas for releases in the future, it is a good idea to list them in the README.
-
-## Contributing
-State if you are open to contributions and what your requirements are for accepting them.
-
-For people who want to make changes to your project, it's helpful to have some documentation on how to get started. Perhaps there is a script that they should run or some environment variables that they need to set. Make these steps explicit. These instructions could also be useful to your future self.
-
-You can also document commands to lint the code or run tests. These steps help to ensure high code quality and reduce the likelihood that the changes inadvertently break something. Having instructions for running tests is especially helpful if it requires external setup, such as starting a Selenium server for testing in a browser.
-
-## Authors and acknowledgment
-Show your appreciation to those who have contributed to the project.
-
-## License
-For open source projects, say how it is licensed.
-
-## Project status
-If you have run out of energy or time for your project, put a note at the top of the README saying that development has slowed down or stopped completely. Someone may choose to fork your project or volunteer to step in as a maintainer or owner, allowing your project to keep going. You can also make an explicit request for maintainers.
