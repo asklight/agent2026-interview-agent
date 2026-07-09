@@ -141,11 +141,40 @@ git push github
 
 下一阶段：
 
-- 初始化 Spring Boot 后端项目
-- 初始化 Vue 3 前端项目
 - 配置 MySQL
 - 验证 `tju-llm` API 调用
 - 建立第一批 Java 核心知识题卡
+
+## 本地运行
+
+### 启动后端
+
+```bash
+cd apps/server
+mvn spring-boot:run
+```
+
+健康检查：
+
+```text
+http://localhost:8080/api/health
+```
+
+### 启动前端
+
+```bash
+cd apps/web
+npm install
+npm run dev
+```
+
+前端地址：
+
+```text
+http://localhost:5173/
+```
+
+Vite 已配置 `/api` 代理到后端 `http://localhost:8080`。
 
 ## 文档
 
