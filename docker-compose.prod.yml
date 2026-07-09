@@ -1,0 +1,73 @@
+name: agent2026-interview-agent
+
+services:
+  mysql:
+    image: mysql:8.0
+    container_name: agent2026-mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-agent2026_interview_agent}
+      MYSQL_USER: ${MYSQL_USERNAME:-agent2026_user}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:?MYSQL_PASSWORD is required}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?MYSQL_ROOT_PASSWORD is required}
+      TZ: Asia/Shanghai
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
+      - --default-time-zone=+08:00
+    volumes:
+      - mysql-data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -uroot -p$${MYSQL_ROOT_PASSWORD} --silent"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+    networks:
+      - agent2026
+
+  server:
+    build:
+      context: .
+      dockerfile: apps/server/Dockerfile
+    image: agent2026-interview-agent-server:latest
+    container_name: agent2026-server
+    restart: unless-stopped
+    depends_on:
+      mysql:
+        condition: service_healthy
+    environment:
+      SPRING_PROFILES_ACTIVE: prod
+      MYSQL_URL: jdbc:mysql://mysql:3306/${MYSQL_DATABASE:-agent2026_interview_agent}?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true&useSSL=false
+      MYSQL_USERNAME: ${MYSQL_USERNAME:-agent2026_user}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:?MYSQL_PASSWORD is required}
+      TJU_LLM_API_URL: ${TJU_LLM_API_URL:?TJU_LLM_API_URL is required}
+      TJU_LLM_API_KEY: ${TJU_LLM_API_KEY:?TJU_LLM_API_KEY is required}
+      TJU_LLM_MODEL: ${TJU_LLM_MODEL:-tju-llm}
+      TZ: Asia/Shanghai
+      JAVA_OPTS: ${JAVA_OPTS:-}
+    expose:
+      - "8080"
+    networks:
+      - agent2026
+
+  web:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+    image: agent2026-interview-agent-web:latest
+    container_name: agent2026-web
+    restart: unless-stopped
+    depends_on:
+      - server
+    ports:
+      - "${WEB_PORT:-80}:80"
+    networks:
+      - agent2026
+
+volumes:
+  mysql-data:
+
+networks:
+  agent2026:
+    driver: bridge

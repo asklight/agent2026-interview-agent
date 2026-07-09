@@ -130,6 +130,12 @@ git push
 git push github
 ```
 
+其中 `github` 远端已经配置为把本地 `main` 推送到 GitHub `master`，等价于：
+
+```bash
+git push github main:master
+```
+
 ## 当前阶段
 
 当前项目处于第一阶段 MVP 收尾阶段。核心训练链路已经跑通，正在强化稳定性和演示体验。
@@ -200,6 +206,24 @@ http://localhost:5173/
 ```
 
 Vite 已配置 `/api` 代理到后端 `http://localhost:8080`。
+
+## 部署
+
+项目已支持 GitHub Actions + Docker Compose 自动部署：
+
+- GitHub `master` 分支推送后触发 CI/CD。
+- CI 阶段执行后端测试、前端构建和生产 Compose 配置校验。
+- CD 阶段通过 SSH 同步代码到服务器，并执行 `docker compose up -d --build`。
+- 生产环境由 Nginx 提供前端静态资源，并把 `/api` 反向代理到 Spring Boot。
+
+部署配置入口：
+
+- GitHub Actions：`.github/workflows/deploy.yml`
+- 生产编排：`docker-compose.prod.yml`
+- 部署说明：`deploy/README.md`
+- 服务器环境变量模板：`deploy/env.prod.example`
+
+生产环境的 `.env.prod`、SSH 私钥、学校 API Key 和数据库密码只放在服务器或 GitHub Secrets 中，不提交到仓库。
 
 ## 文档
 

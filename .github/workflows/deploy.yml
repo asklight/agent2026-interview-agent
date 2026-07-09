@@ -1,0 +1,161 @@
+name: CI/CD
+
+on:
+  push:
+    branches:
+      - master
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: agent2026-interview-agent-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  ci:
+    name: Test and build
+    runs-on: ubuntu-latest
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_DATABASE: agent2026_interview_agent
+          MYSQL_USER: agent2026_user
+          MYSQL_PASSWORD: ci_mysql_password
+          MYSQL_ROOT_PASSWORD: ci_mysql_root_password
+          TZ: Asia/Shanghai
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -uroot -pci_mysql_root_password --silent"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=10
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+          cache: maven
+
+      - name: Test backend
+        working-directory: apps/server
+        env:
+          MYSQL_URL: jdbc:mysql://127.0.0.1:3306/agent2026_interview_agent?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true&useSSL=false
+          MYSQL_USERNAME: agent2026_user
+          MYSQL_PASSWORD: ci_mysql_password
+          TJU_LLM_API_URL: https://example.invalid/chat/completions
+          TJU_LLM_API_KEY: ci_tju_llm_api_key
+          TJU_LLM_MODEL: tju-llm
+        run: mvn -B test
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: apps/web/package-lock.json
+
+      - name: Build frontend
+        working-directory: apps/web
+        run: |
+          npm ci
+          npm run build
+
+      - name: Validate production compose file
+        env:
+          MYSQL_PASSWORD: ci_mysql_password
+          MYSQL_ROOT_PASSWORD: ci_mysql_root_password
+          TJU_LLM_API_URL: https://example.invalid/chat/completions
+          TJU_LLM_API_KEY: ci_tju_llm_api_key
+          TJU_LLM_MODEL: tju-llm
+        run: docker compose -f docker-compose.prod.yml config >/dev/null
+
+  deploy:
+    name: Deploy to server
+    runs-on: ubuntu-latest
+    needs: ci
+    if: github.ref == 'refs/heads/master'
+
+    env:
+      DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+      DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
+      DEPLOY_SSH_PRIVATE_KEY: ${{ secrets.DEPLOY_SSH_PRIVATE_KEY }}
+      DEPLOY_PORT: ${{ secrets.DEPLOY_PORT || '22' }}
+      DEPLOY_PATH: ${{ secrets.DEPLOY_PATH || '/opt/agent2026-interview-agent' }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install deploy tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y rsync
+
+      - name: Prepare SSH
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          missing=0
+          for name in DEPLOY_HOST DEPLOY_USER DEPLOY_SSH_PRIVATE_KEY; do
+            if [ -z "${!name}" ]; then
+              echo "::error::$name secret is required"
+              missing=1
+            fi
+          done
+          if [ "$missing" -ne 0 ]; then
+            exit 1
+          fi
+
+          mkdir -p ~/.ssh
+          chmod 700 ~/.ssh
+
+          key_file="$RUNNER_TEMP/deploy_key"
+          printf '%s\n' "$DEPLOY_SSH_PRIVATE_KEY" > "$key_file"
+          chmod 600 "$key_file"
+          echo "DEPLOY_KEY_FILE=$key_file" >> "$GITHUB_ENV"
+
+          ssh-keyscan -p "$DEPLOY_PORT" -H "$DEPLOY_HOST" >> ~/.ssh/known_hosts
+
+      - name: Sync source to server
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          ssh -i "$DEPLOY_KEY_FILE" -p "$DEPLOY_PORT" "$DEPLOY_USER@$DEPLOY_HOST" "mkdir -p '$DEPLOY_PATH'"
+
+          rsync -az --delete \
+            --exclude='.git/' \
+            --exclude='.env' \
+            --exclude='.env.*' \
+            --exclude='node_modules/' \
+            --exclude='apps/web/dist/' \
+            --exclude='apps/server/target/' \
+            --exclude='logs/' \
+            -e "ssh -i $DEPLOY_KEY_FILE -p $DEPLOY_PORT" \
+            ./ "$DEPLOY_USER@$DEPLOY_HOST:$DEPLOY_PATH/"
+
+      - name: Compose up
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          ssh -i "$DEPLOY_KEY_FILE" -p "$DEPLOY_PORT" "$DEPLOY_USER@$DEPLOY_HOST" "
+            set -euo pipefail
+            cd '$DEPLOY_PATH'
+            if [ ! -f .env.prod ]; then
+              echo '.env.prod is missing in deployment directory' >&2
+              exit 1
+            fi
+            docker compose -f docker-compose.prod.yml --env-file .env.prod up -d --build --remove-orphans
+            docker image prune -f
+          "
