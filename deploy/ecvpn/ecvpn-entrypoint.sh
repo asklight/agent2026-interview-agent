@@ -45,4 +45,18 @@ done
 
 node /opt/ecvpn/vpn-connect.js
 
+# EasyConnect adds broad routes for private networks, including Docker bridge
+# subnets. Remove routes that overlap this container's eth0 /16 so peer
+# containers can still reach the local proxy through Docker networking.
+ETH0_CIDR=$(ip -o -4 addr show dev eth0 | awk '{print $4}' | head -n 1)
+ETH0_PREFIX=$(printf '%s\n' "$ETH0_CIDR" | awk -F'[./]' '{print $1 "." $2 "."}')
+if [ -n "$ETH0_CIDR" ] && [ -n "$ETH0_PREFIX" ]; then
+  ip route show dev tun0 \
+    | awk -v prefix="$ETH0_PREFIX" '$1 ~ ("^" prefix) { print $1 }' \
+    | while read -r route; do
+        ip route del "$route" dev tun0 2>/dev/null || true
+      done
+  ip route replace "$ETH0_CIDR" dev eth0
+fi
+
 exec tinyproxy -d -c /etc/tinyproxy/tinyproxy.conf
