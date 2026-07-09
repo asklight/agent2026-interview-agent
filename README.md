@@ -230,6 +230,7 @@ Vite 已配置 `/api` 代理到后端 `http://localhost:8080`。
 项目文档位于 `docs/` 目录：
 
 - `docs/项目设计.md`：项目定位、功能设计、技术架构和比赛规则适配。
+- `docs/项目交接与运维手册.md`：当前真实状态、部署运维、VPN sidecar、排查命令和交接注意事项。
 - `docs/总体设计架构.md`：系统总体架构、前后端模块、Agent 状态、数据库表和 API 设计。
 - `docs/工程架构决策.md`：参考 `reg-pilot` 后确定的 Java 版本、Monorepo 结构和前后端工程规范。
 - `docs/Milvus知识库设计.md`：面经和八股资料向量知识库设计。
