@@ -16,6 +16,8 @@
 
 不要把服务器密码、私钥、学校 API Key、数据库密码提交到仓库。
 
+如果这些 Secrets 尚未配置，GitHub Actions 会只执行 CI，并在部署阶段给出跳过提示；Secrets 配齐后，下一次推送或手动触发工作流才会执行 SSH 部署。
+
 ## 2. 初始化服务器
 
 服务器需要安装 Docker、Docker Compose 插件和 rsync。首次部署前可以在服务器上执行：
