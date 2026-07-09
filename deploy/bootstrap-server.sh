@@ -7,10 +7,23 @@ sudo apt-get update
 sudo apt-get install -y ca-certificates curl gnupg rsync
 
 if ! command -v docker >/dev/null 2>&1; then
-  curl -fsSL https://get.docker.com | sudo sh
+  sudo apt-get install -y docker.io docker-compose-v2
 fi
 
+sudo mkdir -p /etc/docker
+sudo tee /etc/docker/daemon.json >/dev/null <<'JSON'
+{
+  "registry-mirrors": [
+    "https://mirror.ccs.tencentyun.com",
+    "https://docker.m.daocloud.io",
+    "https://docker.1ms.run",
+    "https://dockerproxy.net"
+  ]
+}
+JSON
+
 sudo systemctl enable --now docker
+sudo systemctl restart docker
 sudo usermod -aG docker "$USER"
 
 sudo mkdir -p "$DEPLOY_PATH"

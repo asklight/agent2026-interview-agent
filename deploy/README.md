@@ -29,6 +29,8 @@ ssh ubuntu@服务器IP "DEPLOY_PATH=/opt/agent2026-interview-agent bash /tmp/boo
 
 如果脚本执行后提示需要重新登录，退出 SSH 后重新登录一次。
 
+脚本会使用 Ubuntu apt 源安装 `docker.io` 和 `docker-compose-v2`，并写入 Docker 镜像源配置。国内服务器直接访问 Docker Hub 可能超时，不建议删除 `/etc/docker/daemon.json` 中的 `registry-mirrors`。
+
 ## 3. 配置生产环境变量
 
 在服务器部署目录创建 `.env.prod`：
