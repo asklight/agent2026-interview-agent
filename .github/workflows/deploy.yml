@@ -164,6 +164,16 @@ jobs:
               echo '.env.prod is missing in deployment directory' >&2
               exit 1
             fi
-            docker compose -f docker-compose.prod.yml --env-file .env.prod up -d --build --remove-orphans
+            COMPOSE_FILES='-f docker-compose.prod.yml'
+            if grep -Eiq '^ENABLE_TJU_VPN=(true|1|yes)$' .env.prod; then
+              sudo modprobe tun || true
+              if [ ! -c /dev/net/tun ]; then
+                sudo mkdir -p /dev/net
+                sudo mknod /dev/net/tun c 10 200
+                sudo chmod 0666 /dev/net/tun
+              fi
+              COMPOSE_FILES=\"\$COMPOSE_FILES -f docker-compose.vpn.yml\"
+            fi
+            docker compose \$COMPOSE_FILES --env-file .env.prod up -d --build --remove-orphans
             docker image prune -f
           "

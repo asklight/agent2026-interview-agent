@@ -44,6 +44,8 @@ services:
       TJU_LLM_API_URL: ${TJU_LLM_API_URL:?TJU_LLM_API_URL is required}
       TJU_LLM_API_KEY: ${TJU_LLM_API_KEY:?TJU_LLM_API_KEY is required}
       TJU_LLM_MODEL: ${TJU_LLM_MODEL:-tju-llm}
+      TJU_LLM_PROXY_HOST: ${TJU_LLM_PROXY_HOST:-}
+      TJU_LLM_PROXY_PORT: ${TJU_LLM_PROXY_PORT:-0}
       TZ: Asia/Shanghai
       JAVA_OPTS: ${JAVA_OPTS:-}
     expose:

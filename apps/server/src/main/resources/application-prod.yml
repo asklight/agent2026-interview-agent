@@ -18,3 +18,5 @@ tju:
     api-url: ${TJU_LLM_API_URL:}
     api-key: ${TJU_LLM_API_KEY:}
     model: ${TJU_LLM_MODEL:tju-llm}
+    proxy-host: ${TJU_LLM_PROXY_HOST:}
+    proxy-port: ${TJU_LLM_PROXY_PORT:0}

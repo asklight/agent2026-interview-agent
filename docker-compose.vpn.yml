@@ -1,0 +1,37 @@
+services:
+  ecvpn:
+    build:
+      context: .
+      dockerfile: deploy/ecvpn/Dockerfile
+    image: agent2026-ecvpn:latest
+    container_name: agent2026-ecvpn
+    restart: unless-stopped
+    privileged: true
+    cap_add:
+      - NET_ADMIN
+      - SYS_ADMIN
+    devices:
+      - /dev/net/tun:/dev/net/tun
+    environment:
+      TJU_VPN_HOST: ${TJU_VPN_HOST:-vpn.tju.edu.cn}
+      TJU_VPN_USERNAME: ${TJU_VPN_USERNAME:?TJU_VPN_USERNAME is required when ENABLE_TJU_VPN=true}
+      TJU_VPN_PASSWORD: ${TJU_VPN_PASSWORD:?TJU_VPN_PASSWORD is required when ENABLE_TJU_VPN=true}
+      TZ: Asia/Shanghai
+    expose:
+      - "8888"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -k -sS --proxy http://127.0.0.1:8888 --connect-timeout 5 --max-time 20 -o /dev/null https://ai.tju.edu.cn/"]
+      interval: 20s
+      timeout: 25s
+      retries: 6
+      start_period: 90s
+    networks:
+      - agent2026
+
+  server:
+    depends_on:
+      ecvpn:
+        condition: service_healthy
+    environment:
+      TJU_LLM_PROXY_HOST: ecvpn
+      TJU_LLM_PROXY_PORT: 8888

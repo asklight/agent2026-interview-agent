@@ -8,6 +8,8 @@ public class TjuLlmProperties {
     private String apiUrl;
     private String apiKey;
     private String model = "tju-llm";
+    private String proxyHost;
+    private Integer proxyPort;
 
     public String getApiUrl() {
         return apiUrl;
@@ -31,5 +33,21 @@ public class TjuLlmProperties {
 
     public void setModel(String model) {
         this.model = model;
+    }
+
+    public String getProxyHost() {
+        return proxyHost;
+    }
+
+    public void setProxyHost(String proxyHost) {
+        this.proxyHost = proxyHost;
+    }
+
+    public Integer getProxyPort() {
+        return proxyPort;
+    }
+
+    public void setProxyPort(Integer proxyPort) {
+        this.proxyPort = proxyPort;
     }
 }

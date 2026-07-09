@@ -16,6 +16,8 @@ import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientException;
 
 import java.io.IOException;
+import java.net.InetSocketAddress;
+import java.net.Proxy;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
@@ -41,6 +43,7 @@ public class TjuLlmClient {
         SimpleClientHttpRequestFactory requestFactory = new SimpleClientHttpRequestFactory();
         requestFactory.setConnectTimeout(Duration.ofSeconds(5));
         requestFactory.setReadTimeout(Duration.ofSeconds(60));
+        configureProxy(requestFactory);
         this.restClient = RestClient.builder()
                 .requestFactory(requestFactory)
                 .build();
@@ -84,6 +87,18 @@ public class TjuLlmClient {
         return StringUtils.hasText(properties.getApiUrl())
                 && StringUtils.hasText(properties.getApiKey())
                 && StringUtils.hasText(properties.getModel());
+    }
+
+    private void configureProxy(SimpleClientHttpRequestFactory requestFactory) {
+        if (!StringUtils.hasText(properties.getProxyHost())
+                || properties.getProxyPort() == null
+                || properties.getProxyPort() <= 0) {
+            return;
+        }
+        requestFactory.setProxy(new Proxy(
+                Proxy.Type.HTTP,
+                new InetSocketAddress(properties.getProxyHost(), properties.getProxyPort())
+        ));
     }
 
     private void validateConfig() {
