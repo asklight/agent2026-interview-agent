@@ -14,6 +14,8 @@ target/
 *.war
 *.ear
 *.log
+*.out
+*.err
 
 # Node / Vue
 node_modules/
@@ -36,4 +38,3 @@ uploads/
 logs/
 *.sqlite
 *.db
-

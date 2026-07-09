@@ -1,0 +1,13 @@
+server:
+  address: 0.0.0.0
+  port: 8080
+
+spring:
+  application:
+    name: interview-agent-server
+  profiles:
+    active: dev
+
+logging:
+  level:
+    com.agent2026.interview: info
