@@ -1,0 +1,16 @@
+spring:
+  datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: ${MYSQL_URL:jdbc:mysql://localhost:3306/agent2026_interview_agent?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai}
+    username: ${MYSQL_USERNAME:agent2026_user}
+    password: ${MYSQL_PASSWORD:}
+
+mybatis-plus:
+  configuration:
+    map-underscore-to-camel-case: true
+
+tju:
+  llm:
+    api-url: ${TJU_LLM_API_URL:}
+    api-key: ${TJU_LLM_API_KEY:}
+    model: ${TJU_LLM_MODEL:tju-llm}

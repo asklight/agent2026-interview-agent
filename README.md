@@ -99,6 +99,10 @@
 TJU_LLM_API_URL=https://ai.tju.edu.cn/api/agent2026/gitlab-42-agent2026-interview-agent/chat/completions
 TJU_LLM_API_KEY=replace_with_your_api_key
 TJU_LLM_MODEL=tju-llm
+
+MYSQL_URL=jdbc:mysql://localhost:3306/agent2026_interview_agent?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai
+MYSQL_USERNAME=agent2026_user
+MYSQL_PASSWORD=replace_with_your_mysql_password
 ```
 
 注意：
@@ -158,6 +162,12 @@ mvn spring-boot:run
 
 ```text
 http://localhost:8080/api/health
+```
+
+数据库检查：
+
+```text
+http://localhost:8080/api/health/db
 ```
 
 ### 启动前端
