@@ -132,31 +132,46 @@ git push github
 
 ## 当前阶段
 
-当前项目处于设计和基础开发准备阶段。
+当前项目处于第一阶段 MVP 收尾阶段。核心训练链路已经跑通，正在强化稳定性和演示体验。
 
 已完成：
 
-- 项目方向确认
-- 技术栈确认
-- 中文项目设计文档
-- 开发路线图
-- 周报模板
-- GitLab 与 GitHub 远程仓库配置
+- Spring Boot 后端骨架与 Vue 3 前端骨架。
+- MySQL 本地连接与基础表结构初始化。
+- 学校 `tju-llm` API 后端代理调用。
+- Java / MySQL / Redis / Spring 结构化题卡。
+- 训练会话创建、当前题目展示、回答提交、下一题、结束训练。
+- 基于 `tju-llm` 的结构化回答评价、打分、遗漏点识别和动态追问。
+- 前端结构化反馈展示。
+- 401 / 429 / 5xx / timeout 等模型调用错误的基础提示。
 
-下一阶段：
+暂未完成：
 
-- 配置 MySQL
-- 验证 `tju-llm` API 调用
-- 建立第一批 Java 核心知识题卡
+- 训练结束后的正式复盘报告。
+- Milvus 知识库检索增强。
+- 项目经历深挖。
+- 算法思维专项训练。
+- 语音输入。
+
+第一阶段验收重点：
+
+- 完整跑通一条演示链路：开始训练 -> 主问题 -> 回答 -> 动态追问 -> 回答追问 -> 下一题 -> 结束。
+- 确认模型返回格式异常时流程不中断。
+- 确认仓库不包含 `.env`、API Key 或数据库密码。
 
 ## 本地运行
 
 ### 启动后端
 
-```bash
+Windows PowerShell：
+
+```powershell
 cd apps/server
+Get-Content ..\..\.env | ForEach-Object { if ($_ -match '^\s*([^#=]+)=(.*)$') { [Environment]::SetEnvironmentVariable($matches[1].Trim(), $matches[2].Trim(), 'Process') } }
 mvn spring-boot:run
 ```
+
+如果已经在系统环境变量中配置了 MySQL 和 `tju-llm` 相关变量，也可以直接执行 `mvn spring-boot:run`。
 
 健康检查：
 

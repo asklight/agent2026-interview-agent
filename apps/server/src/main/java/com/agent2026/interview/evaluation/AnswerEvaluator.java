@@ -30,7 +30,7 @@ public class AnswerEvaluator {
         }
 
         LlmTestVO response = tjuLlmClient.chat(buildEvaluationPrompt(question, questionText, answerText, questionType));
-        return parseModelEvaluation(response.getContent());
+        return parseModelEvaluation(response.getContent(), questionType);
     }
 
     private AnswerEvaluationResult buildConfigRequiredEvaluation(QuestionCard question) {
@@ -49,15 +49,24 @@ public class AnswerEvaluator {
         return AnswerEvaluationResult.unstructured(evaluationText, false);
     }
 
-    private AnswerEvaluationResult parseModelEvaluation(String content) {
+    private AnswerEvaluationResult parseModelEvaluation(String content, String questionType) {
         try {
             JsonNode root = objectMapper.readTree(extractJson(content));
             Integer score = normalizedScore(root.path("score"));
-            String nextAction = normalizedNextAction(root.path("nextAction").asText(null));
             String followUpQuestion = normalizedText(root.path("followUpQuestion").asText(null));
             List<String> hitPoints = parseStringList(root.path("hitPoints"));
             List<String> missingPoints = parseStringList(root.path("missingPoints"));
             List<String> weaknesses = parseStringList(root.path("weaknesses"));
+            String nextAction = inferNextAction(
+                    normalizedNextAction(root.path("nextAction").asText(null)),
+                    questionType,
+                    score,
+                    missingPoints,
+                    weaknesses
+            );
+            if (NextAction.ASK_FOLLOW_UP.equals(nextAction) && !StringUtils.hasText(followUpQuestion)) {
+                followUpQuestion = buildFallbackFollowUp(missingPoints, weaknesses);
+            }
             String evaluationText = formatEvaluationText(
                     root.path("summary").asText(""),
                     root.path("accuracy").asText(""),
@@ -133,13 +142,59 @@ public class AnswerEvaluator {
         return StringUtils.hasText(value) ? value.trim() : null;
     }
 
-    private List<String> parseStringList(JsonNode node) {
-        if (!node.isArray()) {
-            return List.of();
+    private String inferNextAction(String modelAction,
+                                   String questionType,
+                                   Integer score,
+                                   List<String> missingPoints,
+                                   List<String> weaknesses) {
+        if ("FOLLOW_UP".equals(questionType)) {
+            return NextAction.NEXT_QUESTION;
         }
+        if (NextAction.ASK_FOLLOW_UP.equals(modelAction) || NextAction.NEXT_QUESTION.equals(modelAction)) {
+            return modelAction;
+        }
+        if (score != null && score < 75) {
+            return NextAction.ASK_FOLLOW_UP;
+        }
+        if ((missingPoints != null && !missingPoints.isEmpty()) || (weaknesses != null && !weaknesses.isEmpty())) {
+            return NextAction.ASK_FOLLOW_UP;
+        }
+        return NextAction.NEXT_QUESTION;
+    }
+
+    private String buildFallbackFollowUp(List<String> missingPoints, List<String> weaknesses) {
+        if (missingPoints != null && !missingPoints.isEmpty()) {
+            return "你刚才没有讲清楚“" + missingPoints.get(0) + "”，请结合实际项目或底层原理再说明一下。";
+        }
+        if (weaknesses != null && !weaknesses.isEmpty()) {
+            return "你刚才的回答存在“" + weaknesses.get(0) + "”的问题，请重新组织一下，并补充一个具体例子。";
+        }
+        return "请你结合一个真实项目场景，进一步说明这个问题的关键点。";
+    }
+
+    private List<String> parseStringList(JsonNode node) {
         List<String> values = new ArrayList<>();
-        for (JsonNode item : node) {
-            String value = item.asText("");
+        if (node.isArray()) {
+            for (JsonNode item : node) {
+                String value = item.asText("");
+                if (StringUtils.hasText(value)) {
+                    values.add(value.trim());
+                }
+            }
+            return values;
+        }
+        if (node.isTextual()) {
+            String[] parts = node.asText("").split("\\r?\\n|；|;");
+            for (String item : parts) {
+                String value = item.replaceFirst("^[-*\\d.、\\s]+", "").trim();
+                if (StringUtils.hasText(value)) {
+                    values.add(value);
+                }
+            }
+            return values;
+        }
+        if (!node.isMissingNode() && !node.isNull()) {
+            String value = node.asText("");
             if (StringUtils.hasText(value)) {
                 values.add(value.trim());
             }

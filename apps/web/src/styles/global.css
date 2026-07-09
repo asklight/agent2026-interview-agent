@@ -138,6 +138,12 @@ textarea {
   letter-spacing: 0;
 }
 
+.done-summary {
+  margin: -4px 0 0;
+  color: #687385;
+  line-height: 1.7;
+}
+
 .question-meta {
   display: flex;
   flex-wrap: wrap;

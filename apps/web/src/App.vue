@@ -121,6 +121,9 @@
 
         <div v-else class="question-block question-block--done">
           <h2>{{ session.status === 'FINISHED' ? '本次训练已结束' : '当前题目已完成' }}</h2>
+          <p class="done-summary">
+            已完成 {{ session.completedQuestionCount }} / {{ session.questionCount }} 道题，训练过程已保存。
+          </p>
           <div class="action-row">
             <el-button
               v-if="session.status !== 'FINISHED'"
@@ -133,6 +136,15 @@
             </el-button>
             <el-button v-if="session.status !== 'FINISHED'" :icon="CircleClose" @click="finishSession">
               结束
+            </el-button>
+            <el-button
+              v-if="session.status === 'FINISHED'"
+              :icon="VideoPlay"
+              :loading="sessionLoading"
+              type="primary"
+              @click="startSession"
+            >
+              重新开始
             </el-button>
           </div>
         </div>
