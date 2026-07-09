@@ -1,0 +1,21 @@
+CREATE TABLE IF NOT EXISTS question_card (
+    id BIGINT NOT NULL AUTO_INCREMENT COMMENT 'primary key',
+    card_code VARCHAR(128) NOT NULL COMMENT 'stable card code',
+    module VARCHAR(32) NOT NULL COMMENT 'knowledge module',
+    difficulty VARCHAR(16) NOT NULL COMMENT 'easy/medium/hard',
+    main_question TEXT NOT NULL COMMENT 'main interview question',
+    key_points TEXT NOT NULL COMMENT 'JSON array text of expected key points',
+    common_mistakes TEXT COMMENT 'JSON array text of common mistakes',
+    followups TEXT COMMENT 'JSON array text of follow-up questions',
+    scenario_followups TEXT COMMENT 'JSON array text of scenario follow-ups',
+    scoring_rubric TEXT COMMENT 'JSON array text of scoring rubric',
+    tags VARCHAR(256) COMMENT 'comma-separated tags',
+    enabled TINYINT NOT NULL DEFAULT 1 COMMENT 'whether this card is enabled',
+    create_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    update_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    PRIMARY KEY (id),
+    UNIQUE KEY uk_question_card_code (card_code),
+    KEY idx_question_card_module (module),
+    KEY idx_question_card_difficulty (difficulty),
+    KEY idx_question_card_enabled (enabled)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='structured interview question cards';

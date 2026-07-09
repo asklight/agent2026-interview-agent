@@ -4,6 +4,10 @@ spring:
     url: ${MYSQL_URL:jdbc:mysql://localhost:3306/agent2026_interview_agent?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai}
     username: ${MYSQL_USERNAME:agent2026_user}
     password: ${MYSQL_PASSWORD:}
+  sql:
+    init:
+      mode: always
+      encoding: UTF-8
 
 mybatis-plus:
   configuration:

@@ -19,6 +19,21 @@
       />
     </section>
 
+    <section class="module-panel">
+      <div class="module-panel__header">
+        <h2>已接入题卡模块</h2>
+        <el-button :loading="moduleLoading" text type="primary" @click="loadModules">
+          刷新
+        </el-button>
+      </div>
+      <div v-if="questionModules.length" class="module-list">
+        <el-tag v-for="module in questionModules" :key="module" effect="plain">
+          {{ module }}
+        </el-tag>
+      </div>
+      <el-empty v-else :image-size="80" description="暂无题卡模块" />
+    </section>
+
     <section class="mode-grid">
       <article v-for="mode in modes" :key="mode.title" class="mode-card">
         <div class="mode-card__tag">{{ mode.tag }}</div>
@@ -33,10 +48,13 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
 import { getHealth } from '@/api/modules/health'
+import { getQuestionModules } from '@/api/modules/questionCard'
 
 const loading = ref(false)
+const moduleLoading = ref(false)
 const healthMessage = ref('')
 const healthy = ref(false)
+const questionModules = ref<string[]>([])
 
 const modes = [
   {
@@ -79,7 +97,18 @@ async function checkHealth() {
   }
 }
 
+async function loadModules() {
+  moduleLoading.value = true
+  try {
+    const response = await getQuestionModules()
+    questionModules.value = response.data.data
+  } finally {
+    moduleLoading.value = false
+  }
+}
+
 onMounted(() => {
   checkHealth()
+  loadModules()
 })
 </script>

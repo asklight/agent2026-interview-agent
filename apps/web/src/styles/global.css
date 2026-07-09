@@ -55,6 +55,33 @@ textarea {
   margin-bottom: 20px;
 }
 
+.module-panel {
+  margin-bottom: 20px;
+  padding: 18px 20px;
+  border: 1px solid #dde3ee;
+  border-radius: 8px;
+  background: #fff;
+}
+
+.module-panel__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 14px;
+}
+
+.module-panel__header h2 {
+  margin: 0;
+  font-size: 16px;
+}
+
+.module-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
 .mode-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
