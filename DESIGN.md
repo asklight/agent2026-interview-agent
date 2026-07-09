@@ -107,7 +107,8 @@
 确定技术栈：
 
 - 前端：Vue 3 + TypeScript
-- 后端：Spring Boot
+- 后端：Spring Boot 3.3.6
+- Java：17
 - 数据库：MySQL
 - 大模型：比赛专属 `tju-llm` API
 
@@ -121,6 +122,14 @@ Vue 前端
 ```
 
 前端不直接调用大模型接口，所有模型请求都由 Spring Boot 后端代理完成，避免 API Key 泄露。
+
+工程目录采用 Monorepo：
+
+```text
+apps/
+  server/   Spring Boot 后端
+  web/      Vue 3 前端
+```
 
 ## 6. 后端模块设计
 
@@ -198,4 +207,3 @@ TJU_LLM_MODEL=tju-llm
 - 系统能根据回答进行追问或评价。
 - 系统能生成基础复盘报告。
 - 仓库中没有 API Key 或敏感配置。
-
