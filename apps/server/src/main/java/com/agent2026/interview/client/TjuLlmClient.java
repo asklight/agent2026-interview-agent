@@ -54,6 +54,12 @@ public class TjuLlmClient {
         return parseResponse(responseBody);
     }
 
+    public boolean isConfigured() {
+        return StringUtils.hasText(properties.getApiUrl())
+                && StringUtils.hasText(properties.getApiKey())
+                && StringUtils.hasText(properties.getModel());
+    }
+
     private void validateConfig() {
         if (!StringUtils.hasText(properties.getApiUrl())) {
             throw new IllegalStateException("TJU_LLM_API_URL is not configured");

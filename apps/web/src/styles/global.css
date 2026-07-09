@@ -3,7 +3,7 @@
     Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
     sans-serif;
   color: #20242a;
-  background: #f5f7fb;
+  background: #f4f6f9;
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
@@ -27,9 +27,9 @@ textarea {
 }
 
 .app-shell {
-  width: min(1120px, calc(100vw - 32px));
+  width: min(1180px, calc(100vw - 32px));
   margin: 0 auto;
-  padding: 32px 0;
+  padding: 28px 0 40px;
 }
 
 .topbar {
@@ -37,88 +37,134 @@ textarea {
   align-items: center;
   justify-content: space-between;
   gap: 24px;
-  padding: 24px 0;
+  padding: 16px 0 22px;
 }
 
 .topbar h1 {
   margin: 0;
   font-size: 28px;
   font-weight: 700;
+  letter-spacing: 0;
 }
 
 .topbar p {
   margin: 8px 0 0;
-  color: #687385;
+  color: #677386;
 }
 
 .status-band {
-  margin-bottom: 20px;
+  margin-bottom: 18px;
 }
 
-.module-panel {
-  margin-bottom: 20px;
-  padding: 18px 20px;
-  border: 1px solid #dde3ee;
+.workspace {
+  display: grid;
+  grid-template-columns: 320px minmax(0, 1fr);
+  gap: 18px;
+  align-items: start;
+}
+
+.setup-panel,
+.training-panel,
+.evaluation-panel {
+  border: 1px solid #dfe5ee;
   border-radius: 8px;
   background: #fff;
 }
 
-.module-panel__header {
+.setup-panel {
+  padding: 18px;
+}
+
+.training-panel {
+  min-height: 520px;
+  padding: 22px;
+}
+
+.panel-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 16px;
-  margin-bottom: 14px;
+  gap: 14px;
+  margin-bottom: 16px;
 }
 
-.module-panel__header h2 {
+.panel-header h2 {
   margin: 0;
-  font-size: 16px;
+  font-size: 17px;
+  font-weight: 700;
 }
 
-.module-list {
+.full-width {
+  width: 100%;
+}
+
+.session-meta {
+  display: grid;
+  gap: 10px;
+  margin-top: 18px;
+  padding-top: 18px;
+  border-top: 1px solid #e6ebf2;
+}
+
+.session-meta div {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  color: #687385;
+  font-size: 13px;
+}
+
+.session-meta strong {
+  color: #20242a;
+  font-size: 14px;
+}
+
+.question-block {
+  display: grid;
+  gap: 18px;
+}
+
+.question-block--done {
+  min-height: 220px;
+  align-content: center;
+}
+
+.question-block h2 {
+  margin: 0;
+  color: #18202b;
+  font-size: 22px;
+  line-height: 1.45;
+  letter-spacing: 0;
+}
+
+.question-meta {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
 }
 
-.mode-grid {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 16px;
+.action-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
 }
 
-.mode-card {
-  min-height: 210px;
-  padding: 20px;
-  border: 1px solid #dde3ee;
-  border-radius: 8px;
-  background: #fff;
-  box-shadow: 0 8px 24px rgba(45, 55, 72, 0.06);
+.evaluation-panel {
+  margin-top: 20px;
+  padding: 18px;
+  background: #fbfcfe;
 }
 
-.mode-card__tag {
-  display: inline-flex;
-  align-items: center;
-  height: 24px;
-  padding: 0 8px;
-  border-radius: 4px;
-  color: #1d4f91;
-  background: #e8f1ff;
-  font-size: 12px;
-  font-weight: 700;
-}
-
-.mode-card h2 {
-  margin: 16px 0 8px;
-  font-size: 18px;
-}
-
-.mode-card p {
-  min-height: 72px;
-  margin: 0 0 20px;
-  color: #5f6b7a;
-  line-height: 1.6;
+.evaluation-panel pre {
+  margin: 0;
+  white-space: pre-wrap;
+  word-break: break-word;
+  color: #2c3440;
+  font-family:
+    "JetBrains Mono", "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+  font-size: 14px;
+  line-height: 1.7;
 }
 
 @media (max-width: 860px) {
@@ -127,7 +173,23 @@ textarea {
     flex-direction: column;
   }
 
-  .mode-grid {
+  .workspace {
     grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 520px) {
+  .app-shell {
+    width: min(100vw - 20px, 1180px);
+    padding-top: 18px;
+  }
+
+  .training-panel,
+  .setup-panel {
+    padding: 16px;
+  }
+
+  .question-block h2 {
+    font-size: 19px;
   }
 }
