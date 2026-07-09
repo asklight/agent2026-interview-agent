@@ -1,10 +1,16 @@
 package com.agent2026.interview.vo;
 
+import java.util.List;
+
 public class SubmitAnswerVO {
 
     private Long answerId;
     private Long sessionId;
     private Long questionId;
+    private Integer score;
+    private List<String> hitPoints;
+    private List<String> missingPoints;
+    private List<String> weaknesses;
     private String evaluationText;
     private String nextAction;
     private String followUpQuestion;
@@ -34,6 +40,38 @@ public class SubmitAnswerVO {
 
     public void setQuestionId(Long questionId) {
         this.questionId = questionId;
+    }
+
+    public Integer getScore() {
+        return score;
+    }
+
+    public void setScore(Integer score) {
+        this.score = score;
+    }
+
+    public List<String> getHitPoints() {
+        return hitPoints;
+    }
+
+    public void setHitPoints(List<String> hitPoints) {
+        this.hitPoints = hitPoints;
+    }
+
+    public List<String> getMissingPoints() {
+        return missingPoints;
+    }
+
+    public void setMissingPoints(List<String> missingPoints) {
+        this.missingPoints = missingPoints;
+    }
+
+    public List<String> getWeaknesses() {
+        return weaknesses;
+    }
+
+    public void setWeaknesses(List<String> weaknesses) {
+        this.weaknesses = weaknesses;
     }
 
     public String getEvaluationText() {

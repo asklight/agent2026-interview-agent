@@ -142,6 +142,30 @@
             <h2>本轮反馈</h2>
             <el-tag v-if="nextAction" effect="plain" type="success">{{ nextActionText }}</el-tag>
           </div>
+          <div v-if="hasStructuredFeedback" class="feedback-grid">
+            <div v-if="feedbackScore !== null" class="feedback-score">
+              <span>建议分数</span>
+              <strong>{{ feedbackScore }}</strong>
+            </div>
+            <div v-if="hitPoints.length" class="feedback-list">
+              <h3>命中要点</h3>
+              <ul>
+                <li v-for="item in hitPoints" :key="item">{{ item }}</li>
+              </ul>
+            </div>
+            <div v-if="missingPoints.length" class="feedback-list">
+              <h3>遗漏要点</h3>
+              <ul>
+                <li v-for="item in missingPoints" :key="item">{{ item }}</li>
+              </ul>
+            </div>
+            <div v-if="weaknesses.length" class="feedback-list">
+              <h3>薄弱表现</h3>
+              <ul>
+                <li v-for="item in weaknesses" :key="item">{{ item }}</li>
+              </ul>
+            </div>
+          </div>
           <pre>{{ evaluationText }}</pre>
         </section>
       </section>
@@ -183,6 +207,10 @@ const activeQuestion = ref<CurrentQuestion | null>(null)
 const answerText = ref('')
 const evaluationText = ref('')
 const nextAction = ref<SubmitAnswerResult['nextAction'] | ''>('')
+const feedbackScore = ref<number | null>(null)
+const hitPoints = ref<string[]>([])
+const missingPoints = ref<string[]>([])
+const weaknesses = ref<string[]>([])
 
 const statusTitle = computed(() => {
   if (healthy.value) return `后端已连接：${healthMessage.value}`
@@ -213,6 +241,15 @@ const nextActionText = computed(() => {
   if (nextAction.value === 'NEXT_QUESTION') return '可进入下一题'
   if (nextAction.value === 'FINISH_SESSION') return '训练结束'
   return ''
+})
+
+const hasStructuredFeedback = computed(() => {
+  return Boolean(
+    feedbackScore.value !== null
+      || hitPoints.value.length
+      || missingPoints.value.length
+      || weaknesses.value.length,
+  )
 })
 
 function questionTypeText(type: CurrentQuestion['questionType']) {
@@ -259,8 +296,7 @@ async function startSession() {
       questionCount: questionCount.value,
     })
     applySession(response.data.data)
-    evaluationText.value = ''
-    nextAction.value = ''
+    clearFeedback()
     answerText.value = ''
   } finally {
     sessionLoading.value = false
@@ -279,8 +315,7 @@ async function submitAnswer() {
       answerText: answerText.value.trim(),
     })
     const result = response.data.data
-    evaluationText.value = result.evaluationText
-    nextAction.value = result.nextAction
+    applyFeedback(result)
     session.value.completedQuestionCount = result.completedQuestionCount
     session.value.questionCount = result.questionCount
 
@@ -307,8 +342,7 @@ async function goNextQuestion() {
   try {
     const response = await nextInterviewQuestion(session.value.sessionId)
     applySession(response.data.data)
-    evaluationText.value = ''
-    nextAction.value = ''
+    clearFeedback()
     answerText.value = ''
   } finally {
     nextLoading.value = false
@@ -327,6 +361,24 @@ async function finishSession() {
 function applySession(nextSession: InterviewSession) {
   session.value = nextSession
   activeQuestion.value = nextSession.currentQuestion ?? null
+}
+
+function applyFeedback(result: SubmitAnswerResult) {
+  evaluationText.value = result.evaluationText
+  nextAction.value = result.nextAction
+  feedbackScore.value = typeof result.score === 'number' ? result.score : null
+  hitPoints.value = result.hitPoints ?? []
+  missingPoints.value = result.missingPoints ?? []
+  weaknesses.value = result.weaknesses ?? []
+}
+
+function clearFeedback() {
+  evaluationText.value = ''
+  nextAction.value = ''
+  feedbackScore.value = null
+  hitPoints.value = []
+  missingPoints.value = []
+  weaknesses.value = []
 }
 
 onMounted(() => {

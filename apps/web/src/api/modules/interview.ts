@@ -39,6 +39,10 @@ export interface SubmitAnswerResult {
   answerId: number
   sessionId: number
   questionId: number
+  score?: number
+  hitPoints: string[]
+  missingPoints: string[]
+  weaknesses: string[]
   evaluationText: string
   nextAction: 'ASK_FOLLOW_UP' | 'NEXT_QUESTION' | 'FINISH_SESSION'
   followUpQuestion?: string

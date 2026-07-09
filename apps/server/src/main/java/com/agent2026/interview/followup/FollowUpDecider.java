@@ -1,6 +1,7 @@
 package com.agent2026.interview.followup;
 
 import com.agent2026.interview.entity.QuestionCard;
+import com.agent2026.interview.evaluation.AnswerEvaluationResult;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.stereotype.Component;
@@ -21,7 +22,17 @@ public class FollowUpDecider {
         this.objectMapper = objectMapper;
     }
 
-    public FollowUpDecision decideAfterMainAnswer(QuestionCard question) {
+    public FollowUpDecision decideAfterMainAnswer(QuestionCard question, AnswerEvaluationResult evaluation) {
+        if (evaluation != null
+                && NextAction.ASK_FOLLOW_UP.equals(evaluation.getNextAction())
+                && StringUtils.hasText(evaluation.getFollowUpQuestion())) {
+            return new FollowUpDecision(NextAction.ASK_FOLLOW_UP, evaluation.getFollowUpQuestion());
+        }
+
+        if (evaluation != null && NextAction.NEXT_QUESTION.equals(evaluation.getNextAction())) {
+            return new FollowUpDecision(NextAction.NEXT_QUESTION, null);
+        }
+
         String followUp = firstQuestion(question.getFollowups());
         if (!StringUtils.hasText(followUp)) {
             followUp = firstQuestion(question.getScenarioFollowups());

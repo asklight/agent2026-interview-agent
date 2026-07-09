@@ -22,6 +22,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.Arrays;
 import java.util.LinkedHashSet;
@@ -106,11 +107,11 @@ public class InterviewSessionServiceImpl implements InterviewSessionService {
 
         String questionText = activeQuestionText(session, question);
         AnswerEvaluationResult evaluation = answerEvaluator.evaluate(question, questionText, param.getAnswerText(), questionType);
-        InterviewAnswer answer = saveAnswer(session, question, questionText, param.getAnswerText(), evaluation.getEvaluationText());
+        InterviewAnswer answer = saveAnswer(session, question, questionText, param.getAnswerText(), evaluation);
 
-        SubmitAnswerVO vo = baseSubmitAnswerVO(session, question, answer, evaluation.getEvaluationText());
+        SubmitAnswerVO vo = baseSubmitAnswerVO(session, question, answer, evaluation);
         if (QUESTION_TYPE_MAIN.equals(questionType)) {
-            handleMainAnswer(session, question, vo);
+            handleMainAnswer(session, question, evaluation, vo);
         } else if (QUESTION_TYPE_FOLLOW_UP.equals(questionType)) {
             markCurrentQuestionCompleted(session);
             vo.setNextAction(nextActionAfterCompletion(session));
@@ -158,8 +159,11 @@ public class InterviewSessionServiceImpl implements InterviewSessionService {
         return toSessionVO(session, null);
     }
 
-    private void handleMainAnswer(InterviewSession session, QuestionCard question, SubmitAnswerVO vo) {
-        FollowUpDecision decision = followUpDecider.decideAfterMainAnswer(question);
+    private void handleMainAnswer(InterviewSession session,
+                                  QuestionCard question,
+                                  AnswerEvaluationResult evaluation,
+                                  SubmitAnswerVO vo) {
+        FollowUpDecision decision = followUpDecider.decideAfterMainAnswer(question, evaluation);
         if (NextAction.ASK_FOLLOW_UP.equals(decision.getNextAction())) {
             session.setCurrentQuestionType(QUESTION_TYPE_FOLLOW_UP);
             session.setCurrentFollowUpQuestion(decision.getFollowUpQuestion());
@@ -179,13 +183,16 @@ public class InterviewSessionServiceImpl implements InterviewSessionService {
                                        QuestionCard question,
                                        String questionText,
                                        String answerText,
-                                       String evaluationText) {
+                                       AnswerEvaluationResult evaluation) {
         InterviewAnswer answer = new InterviewAnswer();
         answer.setSessionId(session.getId());
         answer.setQuestionCardId(question.getId());
         answer.setQuestionText(questionText);
         answer.setAnswerText(answerText);
-        answer.setEvaluationText(evaluationText);
+        answer.setEvaluationText(evaluation.getEvaluationText());
+        if (evaluation.getScore() != null) {
+            answer.setScore(BigDecimal.valueOf(evaluation.getScore()));
+        }
         answer.setTurnIndex(answerMapper.countBySessionId(session.getId()) + 1);
         answerMapper.insert(answer);
         return answer;
@@ -194,12 +201,16 @@ public class InterviewSessionServiceImpl implements InterviewSessionService {
     private SubmitAnswerVO baseSubmitAnswerVO(InterviewSession session,
                                               QuestionCard question,
                                               InterviewAnswer answer,
-                                              String evaluationText) {
+                                              AnswerEvaluationResult evaluation) {
         SubmitAnswerVO vo = new SubmitAnswerVO();
         vo.setAnswerId(answer.getId());
         vo.setSessionId(session.getId());
         vo.setQuestionId(question.getId());
-        vo.setEvaluationText(evaluationText);
+        vo.setScore(evaluation.getScore());
+        vo.setHitPoints(evaluation.getHitPoints());
+        vo.setMissingPoints(evaluation.getMissingPoints());
+        vo.setWeaknesses(evaluation.getWeaknesses());
+        vo.setEvaluationText(evaluation.getEvaluationText());
         vo.setCompletedQuestionCount(completedCount(session));
         vo.setQuestionCount(totalQuestionCount(session));
         return vo;
