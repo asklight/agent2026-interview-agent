@@ -86,6 +86,7 @@
 - 后端：Spring Boot
 - 前端：Vue 3 + TypeScript
 - 数据库：MySQL
+- 向量库：Milvus
 - 大模型：比赛专属 `tju-llm` API
 
 后端统一代理模型请求，前端不直接接触 API Key。
@@ -151,7 +152,9 @@ git push github
 项目文档位于 `docs/` 目录：
 
 - `docs/项目设计.md`：项目定位、功能设计、技术架构和比赛规则适配。
+- `docs/总体设计架构.md`：系统总体架构、前后端模块、Agent 状态、数据库表和 API 设计。
 - `docs/工程架构决策.md`：参考 `reg-pilot` 后确定的 Java 版本、Monorepo 结构和前后端工程规范。
+- `docs/Milvus知识库设计.md`：面经和八股资料向量知识库设计。
 - `docs/开发路线图.md`：从 2026 年 7 月到提交截止前的开发计划。
 - `docs/任务拆解.md`：按优先级拆分的实施任务、验收标准和第一周具体任务。
 - `docs/一周冲刺计划.md`：一周内完成可演示 MVP 的紧凑安排。
