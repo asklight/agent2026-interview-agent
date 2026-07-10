@@ -51,6 +51,17 @@ export interface SubmitAnswerResult {
   questionCount: number
 }
 
+export interface InterviewReport {
+  sessionId: number
+  totalScore: number
+  scoreLevel: string
+  answeredCount: number
+  strengths: string[]
+  weaknesses: string[]
+  recommendations: string[]
+  generatedAt?: string
+}
+
 export function createInterviewSession(payload: CreateInterviewSessionPayload) {
   return http.post<ApiResponse<InterviewSession>>('/interview-sessions', payload)
 }
@@ -65,4 +76,8 @@ export function nextInterviewQuestion(sessionId: number) {
 
 export function finishInterviewSession(sessionId: number) {
   return http.post<ApiResponse<InterviewSession>>(`/interview-sessions/${sessionId}/finish`)
+}
+
+export function getInterviewReport(sessionId: number) {
+  return http.get<ApiResponse<InterviewReport>>(`/interview-sessions/${sessionId}/report`)
 }

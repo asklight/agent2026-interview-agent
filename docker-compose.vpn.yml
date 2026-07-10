@@ -16,6 +16,7 @@ services:
       TJU_VPN_HOST: ${TJU_VPN_HOST:-vpn.tju.edu.cn}
       TJU_VPN_USERNAME: ${TJU_VPN_USERNAME:?TJU_VPN_USERNAME is required when ENABLE_TJU_VPN=true}
       TJU_VPN_PASSWORD: ${TJU_VPN_PASSWORD:?TJU_VPN_PASSWORD is required when ENABLE_TJU_VPN=true}
+      TJU_VPN_RECONNECT_SECONDS: ${TJU_VPN_RECONNECT_SECONDS:-3600}
       TZ: Asia/Shanghai
     expose:
       - "8888"

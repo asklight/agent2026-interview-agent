@@ -102,3 +102,18 @@ CREATE TABLE IF NOT EXISTS interview_answer (
     KEY idx_interview_answer_session (session_id),
     KEY idx_interview_answer_question (question_card_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='interview answer records';
+
+CREATE TABLE IF NOT EXISTS interview_report (
+    id BIGINT NOT NULL AUTO_INCREMENT COMMENT 'primary key',
+    session_id BIGINT NOT NULL COMMENT 'interview session id',
+    total_score DECIMAL(5,2) NOT NULL DEFAULT 0 COMMENT 'average score',
+    score_level VARCHAR(32) NOT NULL COMMENT 'score band',
+    answered_count INT NOT NULL DEFAULT 0 COMMENT 'submitted answer count',
+    strengths TEXT NOT NULL COMMENT 'newline-separated strengths',
+    weaknesses TEXT NOT NULL COMMENT 'newline-separated weaknesses',
+    recommendations TEXT NOT NULL COMMENT 'newline-separated recommendations',
+    create_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    update_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    PRIMARY KEY (id),
+    UNIQUE KEY uk_interview_report_session (session_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='interview training reports';

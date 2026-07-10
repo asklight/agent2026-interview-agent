@@ -8,6 +8,7 @@ spring:
     init:
       mode: always
       encoding: UTF-8
+      data-locations: classpath:data.sql,classpath:data.generated.sql
 
 mybatis-plus:
   configuration:

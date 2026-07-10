@@ -15,6 +15,7 @@ import com.agent2026.interview.mapper.QuestionCardMapper;
 import com.agent2026.interview.param.CreateInterviewSessionParam;
 import com.agent2026.interview.param.SubmitAnswerParam;
 import com.agent2026.interview.service.InterviewSessionService;
+import com.agent2026.interview.service.InterviewReportService;
 import com.agent2026.interview.vo.CurrentQuestionVO;
 import com.agent2026.interview.vo.InterviewSessionVO;
 import com.agent2026.interview.vo.SubmitAnswerVO;
@@ -46,19 +47,22 @@ public class InterviewSessionServiceImpl implements InterviewSessionService {
     private final QuestionSelector questionSelector;
     private final AnswerEvaluator answerEvaluator;
     private final FollowUpDecider followUpDecider;
+    private final InterviewReportService interviewReportService;
 
     public InterviewSessionServiceImpl(InterviewSessionMapper sessionMapper,
                                        InterviewAnswerMapper answerMapper,
                                        QuestionCardMapper questionCardMapper,
                                        QuestionSelector questionSelector,
                                        AnswerEvaluator answerEvaluator,
-                                       FollowUpDecider followUpDecider) {
+                                       FollowUpDecider followUpDecider,
+                                       InterviewReportService interviewReportService) {
         this.sessionMapper = sessionMapper;
         this.answerMapper = answerMapper;
         this.questionCardMapper = questionCardMapper;
         this.questionSelector = questionSelector;
         this.answerEvaluator = answerEvaluator;
         this.followUpDecider = followUpDecider;
+        this.interviewReportService = interviewReportService;
     }
 
     @Override
@@ -225,6 +229,9 @@ public class InterviewSessionServiceImpl implements InterviewSessionService {
             session.setEndTime(LocalDateTime.now());
         }
         sessionMapper.updateById(session);
+        if (STATUS_FINISHED.equals(session.getStatus())) {
+            interviewReportService.generateIfAbsent(session.getId());
+        }
     }
 
     private String nextActionAfterCompletion(InterviewSession session) {
@@ -240,6 +247,7 @@ public class InterviewSessionServiceImpl implements InterviewSessionService {
             session.setEndTime(LocalDateTime.now());
             sessionMapper.updateById(session);
         }
+        interviewReportService.generateIfAbsent(session.getId());
     }
 
     private InterviewSession requireSession(Long sessionId) {
