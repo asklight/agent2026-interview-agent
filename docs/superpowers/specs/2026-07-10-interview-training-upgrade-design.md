@@ -22,6 +22,14 @@ The EasyConnect entrypoint runs its login, route-repair, and tinyproxy processes
 
 The single-page frontend becomes an interview command center: a concise setup panel before the session, a prominent question and answer workspace during it, a visible progression rail, structured evaluation cards, and a full report dashboard after completion. It preserves current endpoints and progressively loads the new report endpoint after finishing.
 
+### Compact Training Workspace
+
+On desktop widths of 1080px and above, the active training state occupies exactly the viewport height. The document body does not scroll. The layout is a compact three-column grid: a 248px control rail, a flexible question-and-answer workspace, and a 320px feedback rail. The middle workspace places the question in a short fixed-height card and gives all remaining space to the answer editor. The editor body, feedback list, and feedback summary are independently scrollable, so long text never increases the page height.
+
+The report and welcome states retain ordinary vertical scrolling because their content is read rather than actively composed. Below 1080px, the application switches to its existing single-column responsive layout and restores document scrolling; no mobile content is clipped. The finish and submit controls remain visible at the bottom of the answer workspace on desktop.
+
+This change does not alter API calls, component state, question flow, or report generation.
+
 ## Validation
 
 The implementation is validated through backend tests for report generation, type-check/build for the Vue application, a generated-card count check, and shell syntax validation for the VPN entrypoint.

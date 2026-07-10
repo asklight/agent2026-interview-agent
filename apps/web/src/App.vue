@@ -1,5 +1,5 @@
 <template>
-  <main class="command-center">
+  <main class="command-center" :class="{ 'command-center--active': (activeQuestion || evaluationText) && !report }">
     <aside class="control-rail">
       <div class="brand">
         <span class="brand-mark">北</span>
@@ -65,37 +65,42 @@
         <el-button type="primary" class="restart-button" :loading="sessionLoading" @click="startSession"><RefreshRight :size="17" />再练一轮</el-button>
       </section>
 
-      <section v-else-if="activeQuestion" class="interview-workspace">
-        <div class="question-card">
+      <section v-else-if="activeQuestion || evaluationText" class="interview-workspace">
+        <div v-if="activeQuestion" class="question-card">
           <div class="question-meta"><el-tag effect="plain">{{ moduleNames[activeQuestion.module] || activeQuestion.module }}</el-tag><span>{{ activeQuestion.questionType === 'FOLLOW_UP' ? '追问 · 深入验证' : '主问题 · 思路展开' }}</span></div>
           <h2>{{ activeQuestion.questionText }}</h2>
           <div class="question-hint"><VideoPlay :size="16" />建议先用一句话给出结论，再拆解原理和真实业务场景。</div>
         </div>
+        <div v-else class="question-card question-card--complete">
+          <p class="eyebrow">QUESTION COMPLETED</p><h2>本题回答已完成，查看右侧反馈后进入下一题。</h2><div class="question-hint"><CircleCheck :size="16" />你的训练记录和 AI 点评已保存。</div>
+        </div>
         <div class="answer-card">
           <div class="answer-header"><div><p class="eyebrow">YOUR ANSWER</p><h3>组织你的面试回答</h3></div><span>{{ answerText.length }} 字</span></div>
-          <el-input v-model="answerText" class="answer-input" :autosize="{ minRows: 8, maxRows: 15 }" maxlength="2000" placeholder="从结论开始。可以谈机制、取舍、真实项目案例和异常边界……" show-word-limit type="textarea" @keydown.ctrl.enter="submitAnswer" />
+          <el-input v-model="answerText" class="answer-input" :rows="12" maxlength="2000" placeholder="从结论开始。可以谈机制、取舍、真实项目案例和异常边界……" show-word-limit type="textarea" @keydown.ctrl.enter="submitAnswer" />
           <div class="answer-actions">
             <span>Ctrl + Enter 提交</span>
             <div><el-button :disabled="!session || session.status === 'FINISHED'" @click="finishSession">结束训练</el-button><el-button :disabled="!canSubmit" :loading="submitLoading" type="primary" @click="submitAnswer"><Check :size="16" />提交回答</el-button></div>
           </div>
         </div>
 
-        <section v-if="evaluationText" class="feedback-panel">
-          <div class="feedback-head"><div><p class="eyebrow">AI FEEDBACK</p><h3>本轮反馈</h3></div><strong v-if="feedbackScore !== null">{{ feedbackScore }}<small>分</small></strong></div>
-          <div class="feedback-grid">
-            <div v-if="hitPoints.length"><h4>命中要点</h4><span v-for="item in hitPoints" :key="item">{{ item }}</span></div>
-            <div v-if="missingPoints.length"><h4>待补要点</h4><span v-for="item in missingPoints" :key="item">{{ item }}</span></div>
-            <div v-if="weaknesses.length"><h4>表达风险</h4><span v-for="item in weaknesses" :key="item">{{ item }}</span></div>
-          </div>
-          <p class="feedback-summary">{{ evaluationText }}</p>
-          <div class="feedback-next"><span>{{ nextActionText }}</span><el-button v-if="canGoNext" :loading="nextLoading" type="primary" @click="goNextQuestion">进入下一题<ArrowRight :size="16" /></el-button></div>
-        </section>
       </section>
 
       <section v-else class="welcome-state">
         <div class="welcome-orb"><VideoPlay :size="36" /></div><p class="eyebrow">READY WHEN YOU ARE</p><h2>把“会背”训练成<br /><em>能讲清楚。</em></h2><p>从左侧选择模块和难度，开启一场带追问、评分与复盘的 Java 后端面试。</p>
       </section>
     </section>
+
+    <aside v-if="(activeQuestion || evaluationText) && !report" class="feedback-rail">
+      <div class="feedback-head"><div><p class="eyebrow">AI FEEDBACK</p><h3>本轮反馈</h3></div><strong v-if="feedbackScore !== null">{{ feedbackScore }}<small>分</small></strong></div>
+      <div v-if="!evaluationText" class="feedback-empty"><div><strong>等待你的回答</strong><br />提交后，AI 会在这里给出命中要点、遗漏点和下一步建议。</div></div>
+      <div v-else class="feedback-body">
+        <section v-if="hitPoints.length" class="feedback-list"><h4>命中要点</h4><span v-for="item in hitPoints" :key="item">{{ item }}</span></section>
+        <section v-if="missingPoints.length" class="feedback-list"><h4>待补要点</h4><span v-for="item in missingPoints" :key="item">{{ item }}</span></section>
+        <section v-if="weaknesses.length" class="feedback-list"><h4>表达风险</h4><span v-for="item in weaknesses" :key="item">{{ item }}</span></section>
+        <p class="feedback-summary">{{ evaluationText }}</p>
+      </div>
+      <div v-if="evaluationText" class="feedback-next"><span>{{ nextActionText }}</span><el-button v-if="canGoNext" :loading="nextLoading" type="primary" @click="goNextQuestion">进入下一题<ArrowRight :size="16" /></el-button></div>
+    </aside>
   </main>
 </template>
 
