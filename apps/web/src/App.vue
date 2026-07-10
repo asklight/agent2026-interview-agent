@@ -101,6 +101,20 @@
       </div>
       <div v-if="evaluationText" class="feedback-next"><span>{{ nextActionText }}</span><el-button v-if="canGoNext" :loading="nextLoading" type="primary" @click="goNextQuestion">进入下一题<ArrowRight :size="16" /></el-button></div>
     </aside>
+
+    <button v-if="evaluationText && !report" class="mobile-feedback-trigger" type="button" @click="mobileFeedbackOpen = true">查看 AI 反馈</button>
+    <div v-if="evaluationText && mobileFeedbackOpen && !report" class="mobile-feedback-overlay" @click.self="mobileFeedbackOpen = false">
+      <aside class="mobile-feedback-sheet">
+        <div class="mobile-sheet-head"><div><p class="eyebrow">AI FEEDBACK</p><h3>本轮反馈</h3></div><button type="button" @click="mobileFeedbackOpen = false">×</button></div>
+        <div class="mobile-sheet-body">
+          <section v-if="hitPoints.length" class="feedback-list"><h4>命中要点</h4><span v-for="item in hitPoints" :key="item">{{ item }}</span></section>
+          <section v-if="missingPoints.length" class="feedback-list"><h4>待补要点</h4><span v-for="item in missingPoints" :key="item">{{ item }}</span></section>
+          <section v-if="weaknesses.length" class="feedback-list"><h4>表达风险</h4><span v-for="item in weaknesses" :key="item">{{ item }}</span></section>
+          <p class="feedback-summary">{{ evaluationText }}</p>
+        </div>
+        <div class="mobile-sheet-actions"><span>{{ nextActionText }}</span><el-button v-if="canGoNext" :loading="nextLoading" type="primary" @click="goNextQuestion">进入下一题<ArrowRight :size="16" /></el-button></div>
+      </aside>
+    </div>
   </main>
 </template>
 
@@ -115,6 +129,7 @@ import { createInterviewSession, finishInterviewSession, getInterviewReport, nex
 const loading = ref(false); const moduleLoading = ref(false); const sessionLoading = ref(false); const submitLoading = ref(false); const nextLoading = ref(false)
 const healthMessage = ref(''); const healthy = ref(false); const questionModules = ref<string[]>([]); const selectedModule = ref(''); const selectedDifficulty = ref(''); const questionCount = ref(5)
 const session = ref<InterviewSession | null>(null); const activeQuestion = ref<CurrentQuestion | null>(null); const report = ref<InterviewReport | null>(null); const answerText = ref(''); const evaluationText = ref(''); const nextAction = ref<SubmitAnswerResult['nextAction'] | ''>(''); const feedbackScore = ref<number | null>(null); const hitPoints = ref<string[]>([]); const missingPoints = ref<string[]>([]); const weaknesses = ref<string[]>([])
+const mobileFeedbackOpen = ref(false)
 const moduleNames: Record<string, string> = { Java: 'Java 核心', MySQL: 'MySQL', Redis: 'Redis', Spring: 'Spring', Network: '计算机网络', OperatingSystem: '操作系统' }
 const stageTitle = computed(() => report.value ? '训练复盘报告' : session.value ? '专注于这一题' : '开始你的面试训练')
 const progressPercent = computed(() => session.value ? Math.round(session.value.completedQuestionCount / session.value.questionCount * 100) : 0)
@@ -124,7 +139,7 @@ const nextActionText = computed(() => nextAction.value === 'ASK_FOLLOW_UP' ? 'AI
 
 async function checkHealth() { loading.value = true; try { const response = await getHealth(); healthy.value = true; healthMessage.value = response.data.data || '服务运行正常' } catch { healthy.value = false; healthMessage.value = '训练服务暂不可用' } finally { loading.value = false } }
 async function loadModules() { moduleLoading.value = true; try { const response = await getQuestionModules(); questionModules.value = response.data.data; if (!selectedModule.value) selectedModule.value = questionModules.value[0] || '' } finally { moduleLoading.value = false } }
-function clearFeedback() { evaluationText.value = ''; nextAction.value = ''; feedbackScore.value = null; hitPoints.value = []; missingPoints.value = []; weaknesses.value = [] }
+function clearFeedback() { evaluationText.value = ''; nextAction.value = ''; feedbackScore.value = null; hitPoints.value = []; missingPoints.value = []; weaknesses.value = []; mobileFeedbackOpen.value = false }
 function applySession(value: InterviewSession) { session.value = value; activeQuestion.value = value.currentQuestion ?? null }
 async function startSession() { if (!selectedModule.value) return; sessionLoading.value = true; try { const response = await createInterviewSession({ module: selectedModule.value, difficulty: selectedDifficulty.value || undefined, questionCount: questionCount.value }); applySession(response.data.data); report.value = null; answerText.value = ''; clearFeedback() } finally { sessionLoading.value = false } }
 async function loadReport() { if (!session.value) return; const response = await getInterviewReport(session.value.sessionId); report.value = response.data.data; activeQuestion.value = null }

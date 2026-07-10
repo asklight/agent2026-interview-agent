@@ -30,6 +30,12 @@ The report and welcome states retain ordinary vertical scrolling because their c
 
 This change does not alter API calls, component state, question flow, or report generation.
 
+### Tablet and Phone Adaptation
+
+At tablet widths from 641px through 1080px, active training keeps a compact two-column viewport: a 220px configuration rail and a flexible question-and-answer workspace. AI feedback is removed from the permanent layout and appears as a user-controlled floating panel, so it does not reduce editor width or force document scrolling.
+
+At phone widths of 640px and below, training uses a single-column document flow. The feedback control is a fixed bottom action that opens a modal bottom sheet with a backdrop; the sheet owns its own scrolling content and can be dismissed by the close action or backdrop. The desktop feedback rail remains unchanged above 1080px. Report pages continue to use normal scrolling across all breakpoints.
+
 ## Validation
 
 The implementation is validated through backend tests for report generation, type-check/build for the Vue application, a generated-card count check, and shell syntax validation for the VPN entrypoint.
