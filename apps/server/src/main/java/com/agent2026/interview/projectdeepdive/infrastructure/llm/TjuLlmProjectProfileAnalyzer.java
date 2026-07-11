@@ -10,7 +10,6 @@ import com.agent2026.interview.projectdeepdive.domain.port.ProjectProfileAnalyze
 import com.agent2026.interview.projectdeepdive.domain.service.ProjectProfileAnalysisValidator;
 import com.agent2026.interview.shared.error.BusinessException;
 import com.agent2026.interview.shared.error.ErrorCode;
-import com.agent2026.interview.vo.LlmTestVO;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
@@ -24,6 +23,7 @@ import java.util.List;
 public class TjuLlmProjectProfileAnalyzer implements ProjectProfileAnalyzer {
 
     private static final Logger log = LoggerFactory.getLogger(TjuLlmProjectProfileAnalyzer.class);
+    private static final int MAX_ATTEMPTS = 3;
 
     private final TjuLlmClient llmClient;
     private final ObjectMapper objectMapper;
@@ -43,26 +43,24 @@ public class TjuLlmProjectProfileAnalyzer implements ProjectProfileAnalyzer {
             throw new BusinessException(ErrorCode.PROJECT_PROFILE_ANALYSIS_FAILED,
                     "学校 tju-llm 尚未配置，暂时无法分析项目经历");
         }
-        LlmTestVO response = llmClient.chat(buildPrompt(sanitizedDescription));
-        try {
-            ParsedAnalysis parsed = parse(response.getContent());
-            return validator.validateEvidenceBacked(parsed.analysis(), sanitizedDescription,
-                    parsed.responsibilityEvidence(), parsed.architectureEvidence());
-        } catch (BusinessException | IllegalArgumentException ex) {
-            log.warn("Project profile analysis rejected, attempt=initial, reason={}", failureCategory(ex));
-            LlmTestVO repaired = llmClient.chat(buildRepairPrompt(
-                    sanitizedDescription, response.getContent(), validationIssue(ex)));
+        String content = llmClient.chat(buildPrompt(sanitizedDescription)).getContent();
+        for (int attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
             try {
-                ParsedAnalysis parsed = parse(repaired.getContent());
+                ParsedAnalysis parsed = parse(content);
                 return validator.validateEvidenceBacked(parsed.analysis(), sanitizedDescription,
                         parsed.responsibilityEvidence(), parsed.architectureEvidence());
-            } catch (RuntimeException repairFailure) {
-                log.warn("Project profile analysis rejected, attempt=repair, reason={}",
-                        failureCategory(repairFailure));
-                throw new BusinessException(ErrorCode.LLM_RESPONSE_INVALID,
-                        "模型两次返回的项目分析结果都不符合约定结构");
+            } catch (BusinessException | IllegalArgumentException failure) {
+                log.warn("Project profile analysis rejected, attempt={}, reason={}",
+                        attempt, failureCategory(failure));
+                if (attempt == MAX_ATTEMPTS) {
+                    throw new BusinessException(ErrorCode.LLM_RESPONSE_INVALID,
+                            "模型多次返回的项目分析结果都不符合约定结构");
+                }
+                content = llmClient.chat(buildRepairPrompt(
+                        sanitizedDescription, content, validationIssue(failure))).getContent();
             }
         }
+        throw new IllegalStateException("project analysis attempts exhausted unexpectedly");
     }
 
     private ParsedAnalysis parse(String content) {

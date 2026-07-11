@@ -70,13 +70,13 @@ class TjuLlmProjectProfileAnalyzerTest {
     }
 
     @Test
-    void rejectsSecondInvalidOutput() {
+    void rejectsThirdInvalidOutput() {
         when(client.chat(anyString())).thenReturn(response("坏 JSON"), response("仍然是坏 JSON"));
 
         assertThatThrownBy(() -> analyzer.analyze(SOURCE))
                 .isInstanceOfSatisfying(BusinessException.class,
                         ex -> assertThat(ex.getErrorCode()).isEqualTo(ErrorCode.LLM_RESPONSE_INVALID));
-        verify(client, times(2)).chat(anyString());
+        verify(client, times(3)).chat(anyString());
     }
 
     private LlmTestVO response(String content) {
