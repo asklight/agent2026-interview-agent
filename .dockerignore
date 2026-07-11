@@ -8,8 +8,13 @@
 !.env.example
 
 **/target
+!apps/server/target/
+!apps/server/target/layers/
+!apps/server/target/layers/**
 **/node_modules
 **/dist
+!apps/web/dist/
+!apps/web/dist/**
 **/.vite
 
 logs
