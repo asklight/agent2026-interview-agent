@@ -74,9 +74,9 @@ class TjuLlmProjectProfileAnalyzerTest {
                   "projectName": "订单平台",
                   "summary": "订单平台缓存优化项目",
                   "techStack": ["Spring Boot", "Redis"],
-                  "responsibilities": ["缓存模块"],
+                  "responsibilities": [{"summary": "负责 Redis 缓存模块", "sourceFragment": "我负责缓存模块"}],
                   "metrics": ["P95 从 300ms 降到 120ms"],
-                  "architecture": [],
+                  "architecture": [{"summary": "订单平台使用 Spring Boot 和 Redis", "sourceFragment": "订单平台使用 Spring Boot 和 Redis"}],
                   "uncertainties": ["压测口径待确认"],
                   "claims": [{
                     "claimType": "PERFORMANCE_IMPROVEMENT",

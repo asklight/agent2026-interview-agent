@@ -4,6 +4,7 @@ import com.agent2026.interview.client.TjuLlmClient;
 import com.agent2026.interview.projectdeepdive.domain.model.ProjectClaim;
 import com.agent2026.interview.projectdeepdive.domain.model.ProjectClaimRiskLevel;
 import com.agent2026.interview.projectdeepdive.domain.model.ProjectClaimType;
+import com.agent2026.interview.projectdeepdive.domain.model.ProjectFactEvidence;
 import com.agent2026.interview.projectdeepdive.domain.model.ProjectProfileAnalysis;
 import com.agent2026.interview.projectdeepdive.domain.port.ProjectProfileAnalyzer;
 import com.agent2026.interview.projectdeepdive.domain.service.ProjectProfileAnalysisValidator;
@@ -12,6 +13,8 @@ import com.agent2026.interview.shared.error.ErrorCode;
 import com.agent2026.interview.vo.LlmTestVO;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 
 import java.util.ArrayList;
@@ -19,6 +22,8 @@ import java.util.List;
 
 @Component
 public class TjuLlmProjectProfileAnalyzer implements ProjectProfileAnalyzer {
+
+    private static final Logger log = LoggerFactory.getLogger(TjuLlmProjectProfileAnalyzer.class);
 
     private final TjuLlmClient llmClient;
     private final ObjectMapper objectMapper;
@@ -40,19 +45,26 @@ public class TjuLlmProjectProfileAnalyzer implements ProjectProfileAnalyzer {
         }
         LlmTestVO response = llmClient.chat(buildPrompt(sanitizedDescription));
         try {
-            return validator.validate(parse(response.getContent()), sanitizedDescription);
+            ParsedAnalysis parsed = parse(response.getContent());
+            return validator.validateEvidenceBacked(parsed.analysis(), sanitizedDescription,
+                    parsed.responsibilityEvidence(), parsed.architectureEvidence());
         } catch (BusinessException | IllegalArgumentException ex) {
+            log.warn("Project profile analysis rejected, attempt=initial, reason={}", failureCategory(ex));
             LlmTestVO repaired = llmClient.chat(buildRepairPrompt(sanitizedDescription, response.getContent()));
             try {
-                return validator.validate(parse(repaired.getContent()), sanitizedDescription);
+                ParsedAnalysis parsed = parse(repaired.getContent());
+                return validator.validateEvidenceBacked(parsed.analysis(), sanitizedDescription,
+                        parsed.responsibilityEvidence(), parsed.architectureEvidence());
             } catch (RuntimeException repairFailure) {
+                log.warn("Project profile analysis rejected, attempt=repair, reason={}",
+                        failureCategory(repairFailure));
                 throw new BusinessException(ErrorCode.LLM_RESPONSE_INVALID,
                         "模型两次返回的项目分析结果都不符合约定结构");
             }
         }
     }
 
-    private ProjectProfileAnalysis parse(String content) {
+    private ParsedAnalysis parse(String content) {
         try {
             JsonNode root = objectMapper.readTree(extractJson(content));
             List<ProjectClaim> claims = new ArrayList<>();
@@ -73,16 +85,20 @@ public class TjuLlmProjectProfileAnalyzer implements ProjectProfileAnalyzer {
                     ));
                 }
             }
-            return new ProjectProfileAnalysis(
+            List<ProjectFactEvidence> responsibilityEvidence = evidenceFacts(
+                    root.path("responsibilities"), "responsibilities");
+            List<ProjectFactEvidence> architectureEvidence = evidenceFacts(root.path("architecture"), "architecture");
+            ProjectProfileAnalysis analysis = new ProjectProfileAnalysis(
                     text(root, "projectName"),
                     text(root, "summary"),
                     strings(root.path("techStack")),
-                    strings(root.path("responsibilities")),
+                    responsibilityEvidence.stream().map(ProjectFactEvidence::summary).toList(),
                     strings(root.path("metrics")),
-                    strings(root.path("architecture")),
+                    architectureEvidence.stream().map(ProjectFactEvidence::summary).toList(),
                     strings(root.path("uncertainties")),
                     claims
             );
+            return new ParsedAnalysis(analysis, responsibilityEvidence, architectureEvidence);
         } catch (BusinessException ex) {
             throw ex;
         } catch (Exception ex) {
@@ -125,12 +141,56 @@ public class TjuLlmProjectProfileAnalyzer implements ProjectProfileAnalyzer {
         return values;
     }
 
+    private List<ProjectFactEvidence> evidenceFacts(JsonNode node, String field) {
+        if (!node.isArray()) {
+            throw new BusinessException(ErrorCode.LLM_RESPONSE_INVALID, field + " 必须是数组");
+        }
+        List<ProjectFactEvidence> values = new ArrayList<>();
+        for (JsonNode item : node) {
+            if (item.isTextual()) {
+                values.add(new ProjectFactEvidence(item.asText(), item.asText()));
+            } else if (item.isObject()) {
+                values.add(new ProjectFactEvidence(text(item, "summary"), text(item, "sourceFragment")));
+            } else {
+                throw new BusinessException(ErrorCode.LLM_RESPONSE_INVALID,
+                        field + " 只能包含证据对象");
+            }
+        }
+        return values;
+    }
+
     private <E extends Enum<E>> E enumValue(Class<E> type, String value, String field) {
         try {
             return Enum.valueOf(type, value);
         } catch (IllegalArgumentException ex) {
             throw new BusinessException(ErrorCode.LLM_RESPONSE_INVALID, field + " 枚举值不合法");
         }
+    }
+
+    private String failureCategory(Throwable failure) {
+        String message = failure.getMessage() == null ? "" : failure.getMessage();
+        if (message.contains("JSON") || message.contains("数组") || message.contains("字符串") || message.contains("枚举")) {
+            return "json_contract";
+        }
+        if (message.contains("sourceFragment")) {
+            return "source_fragment_evidence";
+        }
+        if (message.contains("技术")) {
+            return "technology_evidence";
+        }
+        if (message.contains("职责")) {
+            return "responsibility_evidence";
+        }
+        if (message.contains("架构")) {
+            return "architecture_evidence";
+        }
+        if (message.contains("指标") || message.contains("数值") || message.contains("单位")) {
+            return "metric_evidence";
+        }
+        if (message.contains("声明") || message.contains("claim")) {
+            return "claim_contract";
+        }
+        return "response_contract";
     }
 
     private String buildPrompt(String description) {
@@ -142,9 +202,9 @@ public class TjuLlmProjectProfileAnalyzer implements ProjectProfileAnalyzer {
                   "projectName": "项目名称；原文未明确时使用能概括项目的中性名称",
                   "summary": "只基于原文的一到三句摘要",
                   "techStack": ["原文明确出现的技术"],
-                  "responsibilities": ["候选人明确承担的职责"],
+                  "responsibilities": [{"summary": "允许压缩概括、但不得扩大范围的职责", "sourceFragment": "逐字摘自原文的职责依据"}],
                   "metrics": ["原文明确给出的指标或业务结果；没有则为空数组"],
-                  "architecture": ["原文明确描述的架构或关键链路"],
+                  "architecture": [{"summary": "允许压缩概括、但不得增加组件的架构或关键链路", "sourceFragment": "逐字摘自原文的架构依据"}],
                   "uncertainties": ["需要用户确认、原文证据不足或表述含糊的事项"],
                   "claims": [{
                     "claimType": "RESPONSIBILITY | TECHNICAL_CHOICE | PERFORMANCE_IMPROVEMENT | ARCHITECTURE_DESIGN | INCIDENT_HANDLING | BUSINESS_RESULT",
@@ -161,6 +221,7 @@ public class TjuLlmProjectProfileAnalyzer implements ProjectProfileAnalyzer {
                 2. metrics 中的所有数值必须原样来自原文。
                 3. 每条 claim 的 sourceFragment 必须是原文连续片段，不能改写。
                 4. 至少提取一条 claim；没有量化指标时不要制造指标。
+                5. responsibilities 和 architecture 的 summary 可以概括，但 sourceFragment 必须逐字来自原文，且 summary 不得加入原文没有的技术、职责、数字或指标。
 
                 【项目原文】
                 %s
@@ -176,5 +237,12 @@ public class TjuLlmProjectProfileAnalyzer implements ProjectProfileAnalyzer {
                 【上一次无效输出，仅用于定位格式问题，不可作为事实来源】
                 %s
                 """.formatted(invalidContent.length() > 10000 ? invalidContent.substring(0, 10000) : invalidContent);
+    }
+
+    private record ParsedAnalysis(
+            ProjectProfileAnalysis analysis,
+            List<ProjectFactEvidence> responsibilityEvidence,
+            List<ProjectFactEvidence> architectureEvidence
+    ) {
     }
 }
