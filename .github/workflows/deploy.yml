@@ -57,6 +57,10 @@ jobs:
           RESOURCE_TOKEN_SECRET: ci_resource_token_secret_at_least_32_bytes
         run: mvn -B test
 
+      - name: Package backend
+        working-directory: apps/server
+        run: mvn -B -DskipTests package
+
       - name: Set up Node
         uses: actions/setup-node@v4
         with:
@@ -69,6 +73,16 @@ jobs:
         run: |
           npm ci
           npm run build
+
+      - name: Upload production artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: production-artifacts
+          path: |
+            apps/server/target/interview-agent-server-0.0.1-SNAPSHOT.jar
+            apps/web/dist
+          if-no-files-found: error
+          retention-days: 1
 
       - name: Validate production compose file
         env:
@@ -96,6 +110,12 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Download tested production artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: production-artifacts
+          path: .
 
       - name: Install deploy tools
         run: |
@@ -147,8 +167,6 @@ jobs:
             --exclude='.env' \
             --exclude='.env.*' \
             --exclude='node_modules/' \
-            --exclude='apps/web/dist/' \
-            --exclude='apps/server/target/' \
             --exclude='logs/' \
             --exclude='backups/' \
             -e "ssh -i $DEPLOY_KEY_FILE -p $DEPLOY_PORT" \

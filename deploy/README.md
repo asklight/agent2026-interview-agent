@@ -1,6 +1,6 @@
 # GitHub Actions 自动部署说明
 
-本项目的生产部署方式是：推送 GitHub `master` 分支后触发 Actions，先执行后端测试和前端构建，再通过 SSH 同步代码到服务器，并在服务器上执行 Docker Compose 构建与启动。
+本项目的生产部署方式是：推送 GitHub `master` 分支后触发 Actions，先执行后端测试、JAR 打包和前端构建，再把通过 CI 的 JAR 与 `dist` 作为制品同步到服务器。服务器只构建轻量运行镜像，不再现场下载 Maven/npm 依赖。
 
 ## 1. GitHub Secrets
 
@@ -78,6 +78,9 @@ docker-compose.prod.yml + docker-compose.vpn.yml
 
 ```bash
 cd /opt/agent2026-interview-agent
+# 手动部署前需先准备经过验证的运行制品：
+cd apps/server && mvn -B -DskipTests package && cd ../..
+cd apps/web && npm ci && npm run build && cd ../..
 bash deploy/deploy-production.sh
 ```
 
