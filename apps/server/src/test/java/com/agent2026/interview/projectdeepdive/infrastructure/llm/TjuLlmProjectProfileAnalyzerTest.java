@@ -45,6 +45,21 @@ class TjuLlmProjectProfileAnalyzerTest {
     }
 
     @Test
+    void remainsCompatibleWithLegacyStringFactArraysWhenTheyAreExactQuotes() {
+        String legacyJson = validJson()
+                .replace("[{\"summary\": \"负责 Redis 缓存模块\", \"sourceFragment\": \"订单平台使用 Spring Boot 和 Redis。我负责缓存模块\"}]",
+                        "[\"我负责缓存模块\"]")
+                .replace("[{\"summary\": \"订单平台使用 Spring Boot 和 Redis\", \"sourceFragment\": \"订单平台使用 Spring Boot 和 Redis\"}]",
+                        "[\"订单平台使用 Spring Boot 和 Redis\"]");
+        when(client.chat(anyString())).thenReturn(response(legacyJson));
+
+        ProjectProfileAnalysis result = analyzer.analyze(SOURCE);
+
+        assertThat(result.responsibilities()).containsExactly("我负责缓存模块");
+        verify(client).chat(anyString());
+    }
+
+    @Test
     void repairsMalformedOutputOnlyOnce() {
         when(client.chat(anyString())).thenReturn(response("不是 JSON"), response(validJson()));
 
@@ -74,7 +89,7 @@ class TjuLlmProjectProfileAnalyzerTest {
                   "projectName": "订单平台",
                   "summary": "订单平台缓存优化项目",
                   "techStack": ["Spring Boot", "Redis"],
-                  "responsibilities": [{"summary": "负责 Redis 缓存模块", "sourceFragment": "我负责缓存模块"}],
+                  "responsibilities": [{"summary": "负责 Redis 缓存模块", "sourceFragment": "订单平台使用 Spring Boot 和 Redis。我负责缓存模块"}],
                   "metrics": ["P95 从 300ms 降到 120ms"],
                   "architecture": [{"summary": "订单平台使用 Spring Boot 和 Redis", "sourceFragment": "订单平台使用 Spring Boot 和 Redis"}],
                   "uncertainties": ["压测口径待确认"],

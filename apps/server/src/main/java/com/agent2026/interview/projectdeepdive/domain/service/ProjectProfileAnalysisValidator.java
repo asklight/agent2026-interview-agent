@@ -23,6 +23,8 @@ public class ProjectProfileAnalysisValidator {
     private static final Pattern METRIC_TOKEN = Pattern.compile("P95|P99|QPS|TPS|ms|毫秒|秒|吞吐|延迟|耗时|%", Pattern.CASE_INSENSITIVE);
     private static final Pattern RESPONSIBILITY_CUE = Pattern.compile("负责|主导|承担|参与|实现|设计|开发|维护");
     private static final Pattern METRIC_CUE = Pattern.compile("P(?:95|99)|QPS|TPS|吞吐|延迟|耗时|提升|降低|减少|增长|%", Pattern.CASE_INSENSITIVE);
+    private static final Pattern SCOPE_EXPANSION_TOKEN = Pattern.compile(
+            "主导|独立|牵头|全权|核心|整体|从零|高可用|分布式|集群|双机|容灾|两级|读写分离|分库分表");
     private static final int MAX_LIST_SIZE = 50;
 
     public ProjectProfileAnalysis validate(ProjectProfileAnalysis analysis, String sourceDescription) {
@@ -166,13 +168,24 @@ public class ProjectProfileAnalysisValidator {
             if (item == null || !summaries.get(index).equals(required(item.summary(), field + ".summary", 1000))) {
                 invalid(field + "与原文依据顺序不一致");
             }
-            String fragment = required(item.sourceFragment(), field + ".sourceFragment", 2000);
+            String fragment = required(item.sourceFragment(), field + ".sourceFragment", 500);
             if (normalize(fragment).length() < 4 || !containsNormalized(sourceDescription, fragment)) {
                 invalid(field + "的 sourceFragment 无法在项目原文中找到");
             }
-            requireEvidenceTokens(item.summary(), sourceDescription, field);
-            requireAsciiFactTokens(item.summary(), sourceDescription, field);
+            requireEvidenceTokens(item.summary(), fragment, field);
+            requireAsciiFactTokens(item.summary(), fragment, field);
+            requireScopeTokens(item.summary(), fragment, field);
             requireLexicalAnchor(item.summary(), fragment, field);
+        }
+    }
+
+    private void requireScopeTokens(String summary, String sourceFragment, String field) {
+        String normalizedFragment = normalize(sourceFragment);
+        Matcher matcher = SCOPE_EXPANSION_TOKEN.matcher(summary);
+        while (matcher.find()) {
+            if (!normalizedFragment.contains(normalize(matcher.group()))) {
+                invalid(field + "包含证据片段未支持的范围或能力词“" + matcher.group() + "”");
+            }
         }
     }
 

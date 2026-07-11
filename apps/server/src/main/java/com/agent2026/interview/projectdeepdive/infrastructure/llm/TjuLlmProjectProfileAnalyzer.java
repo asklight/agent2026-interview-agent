@@ -221,7 +221,7 @@ public class TjuLlmProjectProfileAnalyzer implements ProjectProfileAnalyzer {
                 2. metrics 中的所有数值必须原样来自原文。
                 3. 每条 claim 的 sourceFragment 必须是原文连续片段，不能改写。
                 4. 至少提取一条 claim；没有量化指标时不要制造指标。
-                5. responsibilities 和 architecture 的 summary 可以概括，但 sourceFragment 必须逐字来自原文，且 summary 不得加入原文没有的技术、职责、数字或指标。
+                5. responsibilities 和 architecture 的 summary 可以概括，但每条 sourceFragment 必须逐字来自原文且不超过 500 字；summary 中的技术、职责范围、数字和指标必须在该条 sourceFragment 内有依据。
 
                 【项目原文】
                 %s

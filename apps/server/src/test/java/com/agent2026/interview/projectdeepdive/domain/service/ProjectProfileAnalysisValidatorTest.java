@@ -83,7 +83,7 @@ class ProjectProfileAnalysisValidatorTest {
 
         ProjectProfileAnalysis validated = validator.validateEvidenceBacked(analysis, detailedSource,
                 List.of(new ProjectFactEvidence("负责 Redis 缓存方案设计与压测",
-                        "我负责缓存方案、压测脚本、监控指标和上线回滚预案")),
+                        "对热点商品引入 Redis 缓存。我负责缓存方案、压测脚本、监控指标和上线回滚预案")),
                 List.of(new ProjectFactEvidence("商品详情服务使用 Redis 缓存并连接 MySQL",
                         "使用 Spring Boot 和 MySQL，对热点商品引入 Redis 缓存")));
 
@@ -98,7 +98,8 @@ class ProjectProfileAnalysisValidatorTest {
                 List.of("P95 从 300ms 降到 120ms"), List.of(), List.of(), validAnalysis().claims());
 
         assertThatThrownBy(() -> validator.validateEvidenceBacked(invalid, source,
-                List.of(new ProjectFactEvidence("负责 Redis 与 Kafka 缓存链路", "我负责缓存模块")), List.of()))
+                List.of(new ProjectFactEvidence("负责 Redis 与 Kafka 缓存链路",
+                        "订单平台使用 Spring Boot 和 Redis。我负责缓存模块")), List.of()))
                 .isInstanceOf(BusinessException.class)
                 .hasMessageContaining("Kafka");
     }
@@ -111,7 +112,7 @@ class ProjectProfileAnalysisValidatorTest {
 
         assertThatThrownBy(() -> validator.validateEvidenceBacked(invalid, source,
                 List.of(new ProjectFactEvidence("缓存模块", "我负责缓存模块")),
-                List.of(new ProjectFactEvidence("Redis 缓存链路支持 QPS 300", "订单平台使用 Spring Boot 和 Redis"))))
+                List.of(new ProjectFactEvidence("Redis 缓存链路支持 QPS 300", "将 P95 从 300ms 降到 120ms"))))
                 .isInstanceOf(BusinessException.class)
                 .hasMessageContaining("QPS");
     }
@@ -124,6 +125,55 @@ class ProjectProfileAnalysisValidatorTest {
                 List.of(new ProjectFactEvidence("缓存模块", "我主导缓存平台整体重构")), List.of()))
                 .isInstanceOf(BusinessException.class)
                 .hasMessageContaining("sourceFragment");
+    }
+
+    @Test
+    void rejectsResponsibilityScopeInflationEvenWithSharedWords() {
+        ProjectProfileAnalysis invalid = new ProjectProfileAnalysis("订单平台", "摘要",
+                List.of("Redis"), List.of("负责缓存模块并主导整体架构"),
+                List.of("P95 从 300ms 降到 120ms"), List.of(), List.of(), validAnalysis().claims());
+
+        assertThatThrownBy(() -> validator.validateEvidenceBacked(invalid, source,
+                List.of(new ProjectFactEvidence("负责缓存模块并主导整体架构", "我负责缓存模块")), List.of()))
+                .isInstanceOf(BusinessException.class)
+                .hasMessageContaining("主导");
+    }
+
+    @Test
+    void rejectsArchitectureCapabilityInflationEvenWithSharedWords() {
+        ProjectProfileAnalysis invalid = new ProjectProfileAnalysis("订单平台", "摘要",
+                List.of("Redis"), List.of("缓存模块"), List.of("P95 从 300ms 降到 120ms"),
+                List.of("使用 Redis 缓存并实现双机热备"), List.of(), validAnalysis().claims());
+
+        assertThatThrownBy(() -> validator.validateEvidenceBacked(invalid, source,
+                List.of(new ProjectFactEvidence("缓存模块", "我负责缓存模块")),
+                List.of(new ProjectFactEvidence("使用 Redis 缓存并实现双机热备", "使用 Spring Boot 和 Redis"))))
+                .isInstanceOf(BusinessException.class)
+                .hasMessageContaining("双机");
+    }
+
+    @Test
+    void rejectsTechnologyAttributedFromAnotherSourceFragment() {
+        ProjectProfileAnalysis invalid = new ProjectProfileAnalysis("订单平台", "摘要",
+                List.of("Redis"), List.of("负责 Redis 压测脚本"),
+                List.of("P95 从 300ms 降到 120ms"), List.of(), List.of(), validAnalysis().claims());
+
+        assertThatThrownBy(() -> validator.validateEvidenceBacked(invalid, source,
+                List.of(new ProjectFactEvidence("负责 Redis 压测脚本", "我负责缓存模块")), List.of()))
+                .isInstanceOf(BusinessException.class)
+                .hasMessageContaining("Redis");
+    }
+
+    @Test
+    void rejectsMetricAttributedFromAnotherSourceFragment() {
+        ProjectProfileAnalysis invalid = new ProjectProfileAnalysis("订单平台", "摘要",
+                List.of("Redis"), List.of("负责缓存模块并将 P95 降到 120ms"),
+                List.of("P95 从 300ms 降到 120ms"), List.of(), List.of(), validAnalysis().claims());
+
+        assertThatThrownBy(() -> validator.validateEvidenceBacked(invalid, source,
+                List.of(new ProjectFactEvidence("负责缓存模块并将 P95 降到 120ms", "我负责缓存模块")), List.of()))
+                .isInstanceOf(BusinessException.class)
+                .hasMessageContaining("数值");
     }
 
     private ProjectProfileAnalysis validAnalysis() {
