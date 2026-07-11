@@ -18,9 +18,7 @@ WORKDIR /app
 ENV TZ=Asia/Shanghai
 ENV JAVA_OPTS=""
 
-RUN apk add --no-cache curl \
-    && addgroup -S spring \
-    && adduser -S spring -G spring
+RUN addgroup -S spring && adduser -S spring -G spring
 
 COPY --from=build /workspace/apps/server/target/*.jar /app/app.jar
 

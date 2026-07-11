@@ -98,7 +98,7 @@ else
 fi
 
 docker compose "${compose_args[@]}" --env-file "$ENV_FILE" config >/dev/null
-docker compose "${compose_args[@]}" --env-file "$ENV_FILE" up -d --build --remove-orphans
+timeout --foreground 20m docker compose "${compose_args[@]}" --env-file "$ENV_FILE" up -d --build --remove-orphans
 
 wait_for_healthy() {
   local service="$1"
