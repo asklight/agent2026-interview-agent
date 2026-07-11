@@ -5,6 +5,8 @@ import com.agent2026.interview.common.Result;
 import com.agent2026.interview.shared.error.BusinessException;
 import com.agent2026.interview.shared.error.ErrorCode;
 import org.junit.jupiter.api.Test;
+import org.springframework.http.HttpMethod;
+import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -35,6 +37,15 @@ class GlobalExceptionHandlerTest {
         Result<Void> result = handler.handleBusinessException(exception);
 
         assertEquals(ErrorCode.PROJECT_PROFILE_NOT_FOUND.getMessage(), result.getMsg());
+    }
+
+    @Test
+    void missingResourceReturnsStableNotFoundContract() {
+        Result<Void> result = handler.handleNoResourceFound(
+                new NoResourceFoundException(HttpMethod.POST, "/api/llm/test"));
+
+        assertEquals(ErrorCode.RESOURCE_NOT_FOUND.getCode(), result.getCode());
+        assertEquals(ErrorCode.RESOURCE_NOT_FOUND.getMessage(), result.getMsg());
     }
 
     @Test

@@ -6,6 +6,7 @@ package com.agent2026.interview.shared.error;
 public enum ErrorCode {
 
     PARAM_INVALID(40000, "请求参数不合法"),
+    RESOURCE_NOT_FOUND(40400, "请求的资源不存在"),
     PROJECT_PROFILE_NOT_FOUND(40401, "项目档案不存在"),
     PROJECT_PROFILE_ANALYSIS_FAILED(50001, "项目档案分析失败，请稍后重试"),
     PROJECT_PROFILE_NOT_READY(40901, "项目档案尚未准备完成"),
