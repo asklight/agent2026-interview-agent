@@ -5,6 +5,7 @@ import com.agent2026.interview.common.Result;
 import com.agent2026.interview.param.LlmTestParam;
 import com.agent2026.interview.vo.LlmTestVO;
 import jakarta.validation.Valid;
+import org.springframework.context.annotation.Profile;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -12,6 +13,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequestMapping("/api/llm")
+@Profile("!prod")
 public class LlmTestController {
 
     private final TjuLlmClient tjuLlmClient;

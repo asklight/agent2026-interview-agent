@@ -42,11 +42,14 @@ chmod 600 .env.prod
 
 - `MYSQL_PASSWORD`
 - `MYSQL_ROOT_PASSWORD`
+- `RESOURCE_TOKEN_SECRET`（至少 32 字节的随机值，用于项目资源令牌摘要）
 - `TJU_LLM_API_URL`
 - `TJU_LLM_API_KEY`
 - `TJU_LLM_MODEL`
 
 `.env.prod` 只保存在服务器，不进入 Git 仓库。
+
+如果旧服务器的 `.env.prod` 还没有 `RESOURCE_TOKEN_SECRET`，部署脚本会生成一个 32 字节随机值并写回文件，但不会在日志输出。该值生成后必须长期保持稳定；主动轮换会使已有项目资源令牌全部失效。示例占位符或不足 32 字节的值会被部署脚本拒绝。
 
 ## 4. VPN 隔离模式
 
@@ -71,12 +74,11 @@ docker-compose.prod.yml + docker-compose.vpn.yml
 
 后端 `server` 容器会通过 `ecvpn:8888` 代理访问学校 API。默认部署不启用 VPN。
 
-手动验证命令：
+手动安全部署命令：
 
 ```bash
 cd /opt/agent2026-interview-agent
-docker compose -f docker-compose.prod.yml -f docker-compose.vpn.yml --env-file .env.prod up -d --build
-docker compose -f docker-compose.prod.yml -f docker-compose.vpn.yml --env-file .env.prod ps
+bash deploy/deploy-production.sh
 ```
 
 关闭 VPN 隔离模式时，把 `.env.prod` 中的 `ENABLE_TJU_VPN=false`，然后重新部署即可。
@@ -85,9 +87,10 @@ docker compose -f docker-compose.prod.yml -f docker-compose.vpn.yml --env-file .
 
 ```bash
 cd /opt/agent2026-interview-agent
-docker compose -f docker-compose.prod.yml --env-file .env.prod up -d --build
-docker compose -f docker-compose.prod.yml --env-file .env.prod ps
+bash deploy/deploy-production.sh
 ```
+
+该脚本会根据 `ENABLE_TJU_VPN` 自动选择 Compose 文件，并依次执行必填变量检查、升级前 MySQL 备份、镜像构建、容器启动和健康检查。备份保存在 `backups/`，超过 14 天的部署前备份会自动清理；长期备份应复制到独立安全存储。
 
 访问：
 

@@ -103,6 +103,7 @@ TJU_LLM_MODEL=tju-llm
 MYSQL_URL=jdbc:mysql://localhost:3306/agent2026_interview_agent?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai
 MYSQL_USERNAME=agent2026_user
 MYSQL_PASSWORD=replace_with_your_mysql_password
+RESOURCE_TOKEN_SECRET=replace_with_a_random_secret_at_least_32_bytes
 ```
 
 注意：
@@ -153,11 +154,14 @@ git push github main:master
 - 小林 Coding 公开主题驱动的结构化题库生成流程，当前生成 1,980 张扩展题卡。
 - EasyConnect VPN 容器每 60 分钟自动重连，保留 Docker 网络路由修复与健康检查。
 - 训练结束后的结构化复盘报告：保存总分、等级、亮点、薄弱点与下一轮建议。
+- 项目经历档案的脱敏、结构化提取、人工确认和资源令牌保护。
+- 项目经历深挖的多轮文字面试、幂等重试、隐藏式过程评价和证据可追溯报告。
+- 为后续语音面试预留 `TEXT / VOICE_TRANSCRIPT` 输入模态和独立前端组件边界。
 
 暂未完成：
 
 - Milvus 知识库检索增强。
-- 项目经历深挖。
+- 项目深挖的真实语音输入、ASR、TTS 和打断控制。
 - 算法思维专项训练。
 - 语音输入。
 

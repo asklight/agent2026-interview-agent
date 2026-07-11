@@ -68,6 +68,9 @@ public class InterviewSessionServiceImpl implements InterviewSessionService {
     @Override
     @Transactional
     public InterviewSessionVO create(CreateInterviewSessionParam param) {
+        if (!StringUtils.hasText(param.getModule())) {
+            throw new IllegalStateException("module cannot be blank for JAVA_CORE");
+        }
         QuestionCard firstQuestion = questionSelector.selectFirst(param.getModule(), param.getDifficulty());
 
         InterviewSession session = new InterviewSession();
