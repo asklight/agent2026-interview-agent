@@ -50,7 +50,8 @@ public class TjuLlmProjectProfileAnalyzer implements ProjectProfileAnalyzer {
                     parsed.responsibilityEvidence(), parsed.architectureEvidence());
         } catch (BusinessException | IllegalArgumentException ex) {
             log.warn("Project profile analysis rejected, attempt=initial, reason={}", failureCategory(ex));
-            LlmTestVO repaired = llmClient.chat(buildRepairPrompt(sanitizedDescription, response.getContent()));
+            LlmTestVO repaired = llmClient.chat(buildRepairPrompt(
+                    sanitizedDescription, response.getContent(), validationIssue(ex)));
             try {
                 ParsedAnalysis parsed = parse(repaired.getContent());
                 return validator.validateEvidenceBacked(parsed.analysis(), sanitizedDescription,
@@ -172,9 +173,6 @@ public class TjuLlmProjectProfileAnalyzer implements ProjectProfileAnalyzer {
         if (message.contains("JSON") || message.contains("数组") || message.contains("字符串") || message.contains("枚举")) {
             return "json_contract";
         }
-        if (message.contains("sourceFragment")) {
-            return "source_fragment_evidence";
-        }
         if (message.contains("技术")) {
             return "technology_evidence";
         }
@@ -190,7 +188,18 @@ public class TjuLlmProjectProfileAnalyzer implements ProjectProfileAnalyzer {
         if (message.contains("声明") || message.contains("claim")) {
             return "claim_contract";
         }
+        if (message.contains("sourceFragment")) {
+            return "source_fragment_evidence";
+        }
         return "response_contract";
+    }
+
+    private String validationIssue(Throwable failure) {
+        String message = failure.getMessage();
+        if (message == null || message.isBlank()) {
+            return "未通过 JSON 结构或事实依据校验";
+        }
+        return message.length() > 500 ? message.substring(0, 500) : message;
     }
 
     private String buildPrompt(String description) {
@@ -228,15 +237,18 @@ public class TjuLlmProjectProfileAnalyzer implements ProjectProfileAnalyzer {
                 """.formatted(description);
     }
 
-    private String buildRepairPrompt(String description, String invalidContent) {
+    private String buildRepairPrompt(String description, String invalidContent, String validationIssue) {
         return buildPrompt(description) + """
 
                 上一次输出没有通过结构或事实依据校验。请依据上面的同一份项目原文重新生成完整 JSON。
                 不要沿用无依据内容，也不要输出解释。
 
+                【上一次失败原因】
+                %s
                 【上一次无效输出，仅用于定位格式问题，不可作为事实来源】
                 %s
-                """.formatted(invalidContent.length() > 10000 ? invalidContent.substring(0, 10000) : invalidContent);
+                """.formatted(validationIssue,
+                invalidContent.length() > 10000 ? invalidContent.substring(0, 10000) : invalidContent);
     }
 
     private record ParsedAnalysis(
