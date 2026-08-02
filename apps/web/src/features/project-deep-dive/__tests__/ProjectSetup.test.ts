@@ -31,7 +31,8 @@ vi.mock('@/features/project-deep-dive/api/interviewApi', () => ({
   createProjectInterview: vi.fn(),
 }))
 
-function profile(profileId: number, projectName: string, analysisStatus: ProjectAnalysisStatus): ProjectProfile {
+function profile(profileId: number, projectName: string, analysisStatus: ProjectAnalysisStatus,
+  updateTime = new Date().toISOString()): ProjectProfile {
   return {
     profileId,
     sanitizedDescription: `项目 ${profileId} 的脱敏原文`,
@@ -52,8 +53,8 @@ function profile(profileId: number, projectName: string, analysisStatus: Project
       relatedTechnologies: ['Spring Boot'],
       confirmed: analysisStatus === 'READY',
     }],
-    createTime: '2026-08-02T10:00:00',
-    updateTime: '2026-08-02T10:00:00',
+    createTime: updateTime,
+    updateTime,
   }
 }
 
@@ -202,6 +203,38 @@ describe('ProjectSetup recovery and route reuse', () => {
 
     expect(wrapper.get('[data-testid="review"]').text()).toBe('刷新后恢复结果')
     expect(getProjectProfile).toHaveBeenCalledTimes(2)
+    wrapper.unmount()
+  })
+
+  it('offers recovery immediately when the server analysis lease is already stale', async () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2026-08-03T10:05:00Z'))
+    vi.mocked(getProjectProfile).mockResolvedValueOnce(response(
+      profile(1, '超时的档案', 'ANALYZING', '2026-08-03T10:00:00Z'),
+    ))
+
+    const wrapper = mountSetup('1')
+    await flushPromises()
+
+    expect(wrapper.text()).toContain('项目分析等待时间较长')
+    expect(wrapper.text()).toContain('检查并重新分析')
+    expect(getProjectProfile).toHaveBeenCalledTimes(1)
+    expect(vi.getTimerCount()).toBe(0)
+    wrapper.unmount()
+  })
+
+  it('interprets an unzoned backend timestamp in the server time zone', async () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2026-08-03T10:05:00Z'))
+    vi.mocked(getProjectProfile).mockResolvedValueOnce(response(
+      profile(1, 'stale profile', 'ANALYZING', '2026-08-03T18:00:00'),
+    ))
+
+    const wrapper = mountSetup('1')
+    await flushPromises()
+
+    expect(wrapper.text()).toContain('项目分析等待时间较长')
+    expect(vi.getTimerCount()).toBe(0)
     wrapper.unmount()
   })
 

@@ -209,14 +209,66 @@ describe('useInterviewSession submit idempotency guard', () => {
   it('drops a malformed local pending turn so the server can drive recovery', () => {
     window.sessionStorage.setItem(PENDING_TURNS_KEY, JSON.stringify({
       7: { clientTurnId: 'client-7', content: 42, inputModality: 'VOICE' },
-      8: { clientTurnId: 'client-8', content: '保留其他会话', inputModality: 'TEXT' },
+      8: { clientTurnId: 'client-8', questionTurnId: 200, content: '保留其他会话', inputModality: 'TEXT' },
     }))
 
     const interview = useInterviewSession(7)
 
     expect(interview.pendingSubmission.value).toBeNull()
     expect(JSON.parse(window.sessionStorage.getItem(PENDING_TURNS_KEY) || '{}')).toEqual({
-      8: { clientTurnId: 'client-8', content: '保留其他会话', inputModality: 'TEXT' },
+      8: { clientTurnId: 'client-8', questionTurnId: 200, content: '保留其他会话', inputModality: 'TEXT' },
     })
+  })
+
+  it('normalizes a recovered pending turn before comparing and replaying it', async () => {
+    window.sessionStorage.setItem(PENDING_TURNS_KEY, JSON.stringify({
+      7: {
+        clientTurnId: '  client-7  ',
+        questionTurnId: 100,
+        content: '  recovered answer  ',
+        inputModality: 'TEXT',
+      },
+    }))
+    vi.mocked(submitProjectInterviewTurn).mockResolvedValueOnce({ data: { data: session } } as never)
+    const interview = useInterviewSession(7)
+    interview.session.value = { ...session }
+
+    await interview.submit('recovered answer')
+
+    expect(submitProjectInterviewTurn).toHaveBeenCalledWith(7, 'resource-token', {
+      clientTurnId: 'client-7',
+      questionTurnId: 100,
+      content: 'recovered answer',
+      inputModality: 'TEXT',
+    })
+    expect(interview.pendingSubmission.value).toBeNull()
+  })
+
+  it('keeps a legacy pending id without an anchor for server-side idempotent recovery', () => {
+    window.sessionStorage.setItem(PENDING_TURNS_KEY, JSON.stringify({
+      7: { clientTurnId: 'legacy-client', content: 'legacy answer', inputModality: 'TEXT' },
+    }))
+
+    const interview = useInterviewSession(7)
+
+    expect(interview.pendingSubmission.value).toEqual({
+      clientTurnId: 'legacy-client',
+      questionTurnId: null,
+      content: 'legacy answer',
+      inputModality: 'TEXT',
+    })
+  })
+
+  it('drops pending values outside the public request limits', () => {
+    window.sessionStorage.setItem(PENDING_TURNS_KEY, JSON.stringify({
+      7: { clientTurnId: 'x'.repeat(65), questionTurnId: 100, content: 'answer', inputModality: 'TEXT' },
+      8: { clientTurnId: 'client-8', questionTurnId: Number.MAX_SAFE_INTEGER + 1, content: 'answer', inputModality: 'TEXT' },
+      9: { clientTurnId: 'client-9', questionTurnId: 100, content: 'x'.repeat(20_001), inputModality: 'TEXT' },
+    }))
+
+    expect(useInterviewSession(7).pendingSubmission.value).toBeNull()
+    expect(useInterviewSession(8).pendingSubmission.value).toBeNull()
+    expect(useInterviewSession(9).pendingSubmission.value).toBeNull()
+    expect(JSON.parse(window.sessionStorage.getItem(PENDING_TURNS_KEY) || '{}')).toEqual({})
   })
 })

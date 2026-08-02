@@ -27,18 +27,24 @@ interface PendingSubmission {
 function pendingSubmission(value: unknown): PendingSubmission | null {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return null
   const candidate = value as Partial<PendingSubmission>
-  if (typeof candidate.clientTurnId !== 'string' || !candidate.clientTurnId.trim()) return null
-  if (typeof candidate.content !== 'string' || !candidate.content.trim()) return null
+  if (typeof candidate.clientTurnId !== 'string') return null
+  if (typeof candidate.content !== 'string') return null
+  const clientTurnId = candidate.clientTurnId.trim()
+  const content = candidate.content.trim()
+  if (!clientTurnId || clientTurnId.length > 64) return null
+  if (!content || content.length > 20_000) return null
   if (candidate.questionTurnId !== undefined
     && candidate.questionTurnId !== null
-    && (!Number.isInteger(candidate.questionTurnId) || candidate.questionTurnId <= 0)) return null
+    && (typeof candidate.questionTurnId !== 'number'
+      || !Number.isSafeInteger(candidate.questionTurnId)
+      || candidate.questionTurnId <= 0)) return null
   if (candidate.inputModality !== undefined
     && candidate.inputModality !== 'TEXT'
     && candidate.inputModality !== 'VOICE_TRANSCRIPT') return null
   return {
-    clientTurnId: candidate.clientTurnId,
+    clientTurnId,
     questionTurnId: candidate.questionTurnId ?? null,
-    content: candidate.content,
+    content,
     inputModality: candidate.inputModality || 'TEXT',
   }
 }

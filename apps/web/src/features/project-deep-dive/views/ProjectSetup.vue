@@ -104,6 +104,7 @@ const analysisStalled = ref(false)
 const settings = reactive({ durationMinutes: 20, maxFollowUpsPerClaim: 3, inputModality: 'TEXT' as InputModality })
 const ANALYSIS_POLL_INTERVAL_MS = 2_500
 const ANALYSIS_LEASE_GRACE_MS = 125_000
+const SERVER_TIME_ZONE_OFFSET = '+08:00'
 let routeEpoch = 0
 let profileLoadRequest = 0
 let analysisRequest = 0
@@ -153,10 +154,23 @@ function stopAnalysisPolling() {
   analysisPollTimer = undefined
 }
 
+function analysisLeaseStartedAt(value: ProjectProfile, observedAt = Date.now()) {
+  const timestamp = /(?:Z|[+-]\d{2}:\d{2})$/i.test(value.updateTime)
+    ? value.updateTime
+    : `${value.updateTime}${SERVER_TIME_ZONE_OFFSET}`
+  const serverUpdateTime = Date.parse(timestamp)
+  if (!Number.isFinite(serverUpdateTime) || serverUpdateTime > observedAt) return observedAt
+  return serverUpdateTime
+}
+
 function scheduleAnalysisPolling(profileId: number, token: string, epoch: number,
   requestId: number, startedAt: number) {
   if (!isCurrentProfile(profileId, epoch) || requestId !== analysisRequest) return
   stopAnalysisPolling()
+  if (Date.now() - startedAt >= ANALYSIS_LEASE_GRACE_MS) {
+    analysisStalled.value = true
+    return
+  }
   analysisPollTimer = window.setTimeout(async () => {
     if (!isCurrentProfile(profileId, epoch) || requestId !== analysisRequest) return
     try {
@@ -200,7 +214,8 @@ async function loadProfile(epoch = routeEpoch) {
       if (response.data.data.analysisStatus === 'ANALYZING') {
         const pollingRequest = ++analysisRequest
         analysisStalled.value = false
-        scheduleAnalysisPolling(profileId, token, epoch, pollingRequest, Date.now())
+        scheduleAnalysisPolling(profileId, token, epoch, pollingRequest,
+          analysisLeaseStartedAt(response.data.data))
       }
     }
   } catch {
@@ -229,7 +244,8 @@ async function analyze(profileId: number, token: string) {
       if (latest.data.data.analysisStatus === 'REVIEW_REQUIRED' || latest.data.data.analysisStatus === 'READY') {
         ElMessage.success('项目分析已经完成，已恢复最新档案')
       } else if (latest.data.data.analysisStatus === 'ANALYZING') {
-        scheduleAnalysisPolling(profileId, token, epoch, requestId, Date.now())
+        scheduleAnalysisPolling(profileId, token, epoch, requestId,
+          analysisLeaseStartedAt(latest.data.data))
       } else {
         ElMessage.error('项目分析没有完成，可以直接重新分析')
       }
