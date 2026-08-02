@@ -5,6 +5,7 @@ import com.agent2026.interview.mapper.InterviewSessionMapper;
 import com.agent2026.interview.projectdeepdive.interview.domain.PlannedProbe;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.condition.EnabledIfEnvironmentVariable;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -21,6 +22,7 @@ import java.util.concurrent.TimeUnit;
 import static org.assertj.core.api.Assertions.assertThat;
 
 @SpringBootTest
+@EnabledIfEnvironmentVariable(named = "RUN_MYSQL_INTEGRATION_TESTS", matches = "true")
 class ProjectInterviewRepositoryMySqlTest {
 
     @Autowired
@@ -74,6 +76,7 @@ class ProjectInterviewRepositoryMySqlTest {
             assertThat(sessionMapper.selectById(fixture.sessionId()).getVersion()).isEqualTo(1L);
         } finally {
             executor.shutdownNow();
+            assertThat(executor.awaitTermination(10, TimeUnit.SECONDS)).isTrue();
         }
     }
 

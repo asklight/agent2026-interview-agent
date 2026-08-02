@@ -55,6 +55,7 @@ jobs:
           TJU_LLM_API_KEY: ci_tju_llm_api_key
           TJU_LLM_MODEL: tju-llm
           RESOURCE_TOKEN_SECRET: ci_resource_token_secret_at_least_32_bytes
+          RUN_MYSQL_INTEGRATION_TESTS: "true"
         run: mvn -B test
 
       - name: Package backend
