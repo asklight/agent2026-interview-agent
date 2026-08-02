@@ -465,6 +465,7 @@ ANALYZING
 
 - `READY` 前不能创建项目面试；
 - 同一档案同时只能有一个分析任务；
+- 分析请求响应丢失时，前端轮询档案状态；超过 120 秒处理租约仍未更新时提供安全重试入口；
 - 用户通过明确的确认动作将档案从 `REVIEW_REQUIRED` 推进到 `READY`；
 - 修改 `READY` 档案的核心字段后，状态重新变为 `REVIEW_REQUIRED`；
 - 修改确认后的核心字段会增加版本号；
@@ -613,7 +614,8 @@ LLM 输出必须经过强类型结构校验。JSON 结构解析失败时最多�
 → 事务外调用 tju-llm 提取结构化数据
 → 校验提取结果
 → 短事务保存 Profile 和 Claim
-→ 状态变为 READY
+→ 状态变为 REVIEW_REQUIRED
+→ 用户确认后状态变为 READY
 → 返回提取确认结果
 ```
 
@@ -785,6 +787,7 @@ POST /api/interview-sessions
 ```text
 GET  /api/interview-sessions/{sessionId}/turns
 POST /api/interview-sessions/{sessionId}/turns
+POST /api/interview-sessions/{sessionId}/turns/retry-pending
 POST /api/interview-sessions/{sessionId}/finish
 ```
 
@@ -793,6 +796,7 @@ POST /api/interview-sessions/{sessionId}/finish
 ```json
 {
   "clientTurnId": "550e8400-e29b-41d4-a716-446655440000",
+  "questionTurnId": 31,
   "content": "候选人的回答",
   "inputModality": "TEXT"
 }
@@ -803,6 +807,7 @@ POST /api/interview-sessions/{sessionId}/finish
 ```json
 {
   "clientTurnId": "550e8400-e29b-41d4-a716-446655440000",
+  "questionTurnId": 31,
   "content": "用户确认后的语音转写文本",
   "inputModality": "VOICE_TRANSCRIPT"
 }
@@ -822,11 +827,19 @@ RETRYABLE_FAILED
 
 幂等与恢复规则：
 
-- 相同 `clientTurnId` 对应 `COMPLETED`：直接返回第一次处理结果；
-- 对应 `PROCESSING` 且租约未过期：返回 `409 INTERVIEW_TURN_PROCESSING`；
+- 相同 `clientTurnId` 对应 `COMPLETED`：即使会话已结束也直接返回第一次处理结果；
+- 对应 `PROCESSING` 且租约未过期：沿用现有 HTTP 200 统一响应包，返回业务码 `40913 INTERVIEW_TURN_PROCESSING`；
 - 对应 `RETRYABLE_FAILED`：允许使用原 `clientTurnId` 重试；
+- 新 `clientTurnId` 必须携带当前最后一条面试官 Turn 的 `questionTurnId`，候选人 Turn 使用 `parentTurnId` 持久化该锚点；如果问题已经推进，返回业务码 `40911 INTERVIEW_STATE_CONFLICT`，不能把旧回答注册为下一题回答；
+- 已登记的 `clientTurnId` 按服务端已保存的 `parentTurnId`、回答和输入模态继续完成、对账或重试，不接受重放请求篡改这些字段；历史空 `parentTurnId` 只允许恢复已有记录，不能绕过新回答的问题锚定；
 - `PROCESSING` 超过 120 秒视为租约过期，可由下次请求转为 `RETRYABLE_FAILED`；
-- 服务进程中断后不会永久卡死在 `PROCESSING`。
+- 首次并发注册必须明确唯一处理所有者，非所有者不能调用 LLM；`processingStartedAt` 同时作为毫秒精度 fencing token，旧租约不能标记或提交新租约的结果；
+- 公共会话只暴露运行态 `turnState=IDLE|PROCESSING|RETRYABLE_ERROR`，不暴露 `clientTurnId`、内部处理状态或评价字段；
+- 本地幂等信息丢失时，已鉴权客户端可调用 `retry-pending`，由服务端使用原回答、原模态和原 `clientTurnId` 恢复；
+- 前端只在无法取得业务码的传输失败后用同一 `clientTurnId` 自动对账；收到明确业务错误后不得自动 POST。`40911` 需要清理 pending、同步最新问题并保留输入草稿；
+- 服务进程中断或浏览器本地状态损坏后，都不会永久卡死在 `PROCESSING`。
+
+报告恢复规则：面试结束时和读取项目报告时都调用幂等的 `generateIfAbsent(sessionId)`。如果最后一轮已经提交、首次报告生成却失败，用户进入或刷新报告页即可补生成，不需要重放回答或创建重复报告。
 
 创建请求采用按 `mode` 条件校验：
 
@@ -1274,11 +1287,13 @@ Milvus 和语音继续使用独立后续规格。
 - 固定 Stub 场景下，同一核心 Claim 的主问之后至少产生两个针对不同证据缺口的追问，且不超过配置上限；
 - 项目回答响应 JSON 中不存在 `score`、`hitPoints`、`missingPoints`、`decision` 和 `modelRawResponse`；
 - 相同 `clientTurnId` 重复提交时，LLM 调用次数严格为一次；
+- 两个客户端使用不同 `clientTurnId` 回答同一个问题时只允许一次状态推进，迟到回答返回 `40911`，且不会注册为下一题回答；
 - LLM 超时后可以安全重试；
 - 进程中断形成的过期 `PROCESSING` Turn 可以恢复为可重试状态；
 - 使用 `NoOpVectorRetrievalService` 时完整项目面试流程通过；
 - 用户主动提前结束时，未覆盖维度标记为 `NOT_ASSESSED`；
 - 面试结束后生成基于逐轮评价的项目报告，每条关键结论至少引用一个 `candidateTurnId`；
+- 最后一轮或首次报告生成响应丢失后，重复提交和报告读取都能幂等恢复，报告不会永久停留在未生成状态；
 - 后端核心单元测试和集成测试通过；
 - 旧 `/answers`、`/next-question` 和 `/report` 契约回归测试通过；
 - 前端类型检查和生产构建通过；

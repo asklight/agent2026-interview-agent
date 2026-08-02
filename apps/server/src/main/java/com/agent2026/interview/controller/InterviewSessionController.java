@@ -59,6 +59,12 @@ public class InterviewSessionController {
         return Result.success(deepDiveInterviewService.submit(sessionId, token, request));
     }
 
+    @PostMapping("/{sessionId}/turns/retry-pending")
+    public Result<ProjectInterviewSessionResponse> retryPendingTurn(@PathVariable Long sessionId,
+            @RequestHeader(value = "X-Resource-Token", required = false) String token) {
+        return Result.success(deepDiveInterviewService.retryPending(sessionId, token));
+    }
+
     @GetMapping("/{sessionId}")
     public Result<?> get(@PathVariable Long sessionId,
                          @RequestHeader(value = "X-Resource-Token", required = false) String token) {

@@ -78,6 +78,7 @@ export interface ProjectReviewForm {
 export type InterviewRole = 'INTERVIEWER' | 'CANDIDATE' | 'SYSTEM'
 export type InterviewTurnType = 'OPENING' | 'MAIN' | 'FOLLOW_UP' | 'ANSWER' | 'TRANSITION' | 'CLOSING'
 export type InterviewSessionStatus = 'PREPARING' | 'IN_PROGRESS' | 'FINISHING' | 'FINISHED' | 'CANCELLED'
+export type InterviewTurnState = 'IDLE' | 'PROCESSING' | 'RETRYABLE_ERROR'
 
 export interface PublicInterviewTurn {
   turnId: number
@@ -101,6 +102,7 @@ export interface ProjectInterviewSession {
   totalProbeCount: number
   maxFollowUpsPerClaim: number
   inputModality: InputModality
+  turnState: InterviewTurnState
   turns: PublicInterviewTurn[]
 }
 
@@ -114,6 +116,7 @@ export interface CreateProjectInterviewPayload {
 
 export interface SubmitProjectTurnPayload {
   clientTurnId: string
+  questionTurnId: number | null
   content: string
   inputModality: InputModality
 }

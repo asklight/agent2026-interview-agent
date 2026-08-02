@@ -8,6 +8,20 @@ export interface ApiResponse<T = unknown> {
   data: T
 }
 
+export class ApiBusinessError extends Error {
+  readonly code: number
+
+  constructor(code: number, message: string) {
+    super(message)
+    this.name = 'ApiBusinessError'
+    this.code = code
+  }
+}
+
+export function isApiBusinessError(error: unknown): error is ApiBusinessError {
+  return error instanceof ApiBusinessError
+}
+
 const http = axios.create({
   baseURL: '/api',
   timeout: 70000,
@@ -29,15 +43,19 @@ http.interceptors.response.use(
     if (data && typeof data === 'object' && data.code !== 200) {
       const message = readableMessage(data.code, data.msg)
       ElMessage.error(message)
-      return Promise.reject(new Error(message))
+      return Promise.reject(new ApiBusinessError(data.code, message))
     }
     return response
   },
   (error: AxiosError<ApiResponse>) => {
+    const businessCode = error.response?.data?.code
     const message = error.code === 'ECONNABORTED'
       ? '请求超时，请稍后重试'
-      : readableMessage(error.response?.data?.code, error.response?.data?.msg || '网络异常，请稍后重试')
+      : readableMessage(businessCode, error.response?.data?.msg || '网络异常，请稍后重试')
     ElMessage.error(message)
+    if (typeof businessCode === 'number' && businessCode !== 200) {
+      return Promise.reject(new ApiBusinessError(businessCode, message))
+    }
     return Promise.reject(error)
   },
 )

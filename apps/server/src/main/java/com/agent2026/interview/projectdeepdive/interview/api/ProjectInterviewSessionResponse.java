@@ -5,7 +5,7 @@ import java.util.List;
 public record ProjectInterviewSessionResponse(Long sessionId, String mode, String status,
                                               String conversationPhase, String currentProbeDimension,
                                               int completedProbeCount, int totalProbeCount,
-                                              int maxFollowUpsPerClaim, String inputModality,
+                                              int maxFollowUpsPerClaim, String inputModality, String turnState,
                                               List<PublicInterviewTurnResponse> turns) {
     public ProjectInterviewSessionResponse {
         turns = turns == null ? List.of() : List.copyOf(turns);

@@ -5,6 +5,7 @@ import jakarta.validation.constraints.Size;
 
 public record SubmitProjectTurnRequest(
         @NotBlank(message = "clientTurnId 不能为空") @Size(max = 64) String clientTurnId,
+        Long questionTurnId,
         @NotBlank(message = "回答内容不能为空") @Size(max = 20000) String content,
         String inputModality) {
 }

@@ -28,7 +28,7 @@ public class RequestRateLimitFilter extends OncePerRequestFilter {
     private static final Pattern PROJECT_ANALYZE =
             Pattern.compile("^/api/project-profiles/\\d+/analyze/?$");
     private static final Pattern INTERVIEW_LLM_OPERATION =
-            Pattern.compile("^/api/interview-sessions/\\d+/(?:answers|turns)/?$");
+            Pattern.compile("^/api/interview-sessions/\\d+/(?:answers|turns(?:/retry-pending)?)/?$");
     private static final Pattern IP_ADDRESS = Pattern.compile("^[0-9a-fA-F:.]{2,64}$");
 
     private final RateLimitProperties properties;

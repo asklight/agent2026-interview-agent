@@ -4,7 +4,7 @@
       <div><p class="page-kicker">STEP 02 · REVIEW</p><h2>{{ readonly ? '已确认的项目档案' : '确认系统理解得对不对' }}</h2></div>
       <el-tag :type="readonly ? 'success' : 'warning'" effect="plain">{{ readonly ? '面试将使用以下内容' : '确认后再开始面试' }}</el-tag>
     </div>
-    <p class="section-intro">{{ readonly ? '档案已经锁定为本次面试的事实起点。如需修改，请重新创建项目档案。' : '这里不是最终评分。请修正不准确的信息，面试官会以确认后的内容作为追问起点。' }}</p>
+    <p class="section-intro">{{ readonly ? '档案已经确认。开始面试后会使用快照；仍可在下方操作区重新编辑并再次确认。' : '这里不是最终评分。请修正不准确的信息，面试官会以确认后的内容作为追问起点。' }}</p>
 
     <div class="review-grid">
       <el-form label-position="top" class="review-main-form">

@@ -77,17 +77,22 @@ public class DeepDiveInterviewApplicationService {
 
     public ProjectInterviewSessionResponse submit(Long sessionId, String token, SubmitProjectTurnRequest request) {
         InterviewSession session = requireOwnedSession(sessionId, token);
-        if (!"IN_PROGRESS".equals(session.getStatus())) throw new BusinessException(ErrorCode.INTERVIEW_SESSION_FINISHED);
         String clientTurnId = request.clientTurnId().trim();
+        InterviewTurn existing = interviewRepository.findByClientTurnId(sessionId, clientTurnId).orElse(null);
+        if (existing != null && "COMPLETED".equals(existing.processingStatus())) {
+            if ("FINISHED".equals(session.getStatus())) reportService.generateIfAbsent(sessionId);
+            return getTurns(sessionId, token);
+        }
+        if (!"IN_PROGRESS".equals(session.getStatus())) {
+            throw new BusinessException(ErrorCode.INTERVIEW_SESSION_FINISHED);
+        }
         String answer = request.content().trim();
         String modality = normalizeModality(request.inputModality());
         InterviewPlan plan = interviewRepository.findPlan(sessionId);
         PlannedProbe probe = currentProbe(session, plan);
 
-        InterviewTurn existing = interviewRepository.findByClientTurnId(sessionId, clientTurnId).orElse(null);
         InterviewTurn candidate;
         if (existing != null) {
-            if ("COMPLETED".equals(existing.processingStatus())) return getTurns(sessionId, token);
             if ("PROCESSING".equals(existing.processingStatus()) && existing.processingStartedAt() != null
                     && existing.processingStartedAt().isAfter(LocalDateTime.now().minusSeconds(PROCESSING_LEASE_SECONDS))) {
                 throw new BusinessException(ErrorCode.INTERVIEW_TURN_PROCESSING);
@@ -99,10 +104,15 @@ public class DeepDiveInterviewApplicationService {
             }
             candidate = interviewRepository.findByClientTurnId(sessionId, clientTurnId).orElseThrow();
         } else {
-            candidate = interviewRepository.registerCandidate(sessionId, session.getVersion() == null ? 0 : session.getVersion(),
-                    clientTurnId, answer, modality, probe);
-            if (candidate == null) throw new BusinessException(ErrorCode.INTERVIEW_STATE_CONFLICT);
-            if (!"PROCESSING".equals(candidate.processingStatus())) return getTurns(sessionId, token);
+            ProjectInterviewRepository.CandidateRegistration registration = interviewRepository.registerCandidate(
+                    sessionId, session.getVersion() == null ? 0 : session.getVersion(),
+                    clientTurnId, request.questionTurnId(), answer, modality, probe);
+            if (registration == null) throw new BusinessException(ErrorCode.INTERVIEW_STATE_CONFLICT);
+            candidate = registration.turn();
+            if (!registration.processingOwner()) {
+                if ("COMPLETED".equals(candidate.processingStatus())) return getTurns(sessionId, token);
+                throw new BusinessException(ErrorCode.INTERVIEW_TURN_PROCESSING);
+            }
         }
 
         String persistedAnswer = candidate.content();
@@ -115,8 +125,9 @@ public class DeepDiveInterviewApplicationService {
             evaluation = turnEvaluator.evaluate(new TurnEvaluationContext(profile.summary(), probe,
                     interviewRepository.findTurns(sessionId), persistedAnswer, retrieval.snippets()));
         } catch (RuntimeException ex) {
-            interviewRepository.markRetryable(candidate.id());
-            throw new BusinessException(ErrorCode.LLM_UNAVAILABLE, "面试官暂时无法完成评价，请使用相同 clientTurnId 重试", ex);
+            interviewRepository.markRetryable(candidate.id(), candidate.processingStartedAt());
+            throw new BusinessException(ErrorCode.LLM_UNAVAILABLE,
+                    "面试官暂时无法完成评价，可以安全重试上一条回答", ex);
         }
 
         session = interviewRepository.findSession(sessionId).orElseThrow();
@@ -131,13 +142,32 @@ public class DeepDiveInterviewApplicationService {
         PlannedProbe nextProbe = "FOLLOW_UP".equals(decision) ? probe
                 : plan.plannedProbes().get(Math.min(currentIndex + 1, plan.plannedProbes().size() - 1));
         String nextQuestion = question(decision, evaluation.suggestedFollowUp(), nextProbe, currentIndex, followUps);
-        if (interviewRepository.complete(sessionId, candidate.id(), probe, evaluation, decision, nextProbe,
-                nextQuestion, retrieval.degraded()) == null) {
+        InterviewTurn completed = interviewRepository.complete(sessionId, candidate.id(), candidate.processingStartedAt(),
+                probe, evaluation, decision, nextProbe,
+                nextQuestion, retrieval.degraded());
+        boolean shouldGenerateReport = completed != null && "FINISH".equals(decision);
+        if (completed == null) {
             InterviewTurn concurrent = interviewRepository.findByClientTurnId(sessionId, clientTurnId).orElseThrow();
-            if (!"COMPLETED".equals(concurrent.processingStatus())) throw new BusinessException(ErrorCode.INTERVIEW_STATE_CONFLICT);
+            if (!"COMPLETED".equals(concurrent.processingStatus())) {
+                throw new BusinessException(ErrorCode.INTERVIEW_TURN_PROCESSING);
+            }
+            InterviewSession persistedSession = interviewRepository.findSession(sessionId).orElseThrow();
+            shouldGenerateReport = "FINISHED".equals(persistedSession.getStatus());
         }
-        if ("FINISH".equals(decision)) reportService.generateIfAbsent(sessionId);
+        if (shouldGenerateReport) reportService.generateIfAbsent(sessionId);
         return getTurns(sessionId, token);
+    }
+
+    public ProjectInterviewSessionResponse retryPending(Long sessionId, String token) {
+        InterviewSession session = requireOwnedSession(sessionId, token);
+        if (!"IN_PROGRESS".equals(session.getStatus())) {
+            throw new BusinessException(ErrorCode.INTERVIEW_SESSION_FINISHED);
+        }
+        InterviewTurn pending = interviewRepository.findPendingCandidate(sessionId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.INTERVIEW_STATE_CONFLICT,
+                        "当前没有需要恢复的回答"));
+        return submit(sessionId, token, new SubmitProjectTurnRequest(
+                pending.clientTurnId(), pending.parentTurnId(), pending.content(), pending.inputModality()));
     }
 
     public ProjectInterviewSessionResponse finish(Long sessionId, String token) {
@@ -150,7 +180,8 @@ public class DeepDiveInterviewApplicationService {
     }
 
     public ProjectInterviewReportResponse getReport(Long sessionId, String token) {
-        requireOwnedSession(sessionId, token);
+        InterviewSession session = requireOwnedSession(sessionId, token);
+        if ("FINISHED".equals(session.getStatus())) reportService.generateIfAbsent(sessionId);
         return reportService.get(sessionId);
     }
 
@@ -218,6 +249,23 @@ public class DeepDiveInterviewApplicationService {
                 session.getConversationPhase(), session.getCurrentProbeDimension(),
                 session.getCompletedQuestionCount() == null ? 0 : session.getCompletedQuestionCount(),
                 plan.plannedProbes().size(), session.getMaxFollowUpCount() == null ? 0 : session.getMaxFollowUpCount(),
-                session.getInputModality(), turns.stream().map(PublicInterviewTurnResponse::from).toList());
+                session.getInputModality(), turnState(turns),
+                turns.stream().map(PublicInterviewTurnResponse::from).toList());
+    }
+
+    private String turnState(List<InterviewTurn> turns) {
+        return turns.stream()
+                .filter(turn -> "CANDIDATE".equals(turn.role()))
+                .filter(turn -> "PROCESSING".equals(turn.processingStatus())
+                        || "RETRYABLE_FAILED".equals(turn.processingStatus()))
+                .reduce((first, second) -> second)
+                .map(turn -> {
+                    if ("RETRYABLE_FAILED".equals(turn.processingStatus())) return "RETRYABLE_ERROR";
+                    LocalDateTime startedAt = turn.processingStartedAt();
+                    return startedAt == null || startedAt.isBefore(
+                            LocalDateTime.now().minusSeconds(PROCESSING_LEASE_SECONDS))
+                            ? "RETRYABLE_ERROR" : "PROCESSING";
+                })
+                .orElse("IDLE");
     }
 }

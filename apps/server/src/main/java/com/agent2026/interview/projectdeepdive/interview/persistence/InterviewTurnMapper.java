@@ -15,6 +15,13 @@ public interface InterviewTurnMapper extends BaseMapper<InterviewTurnEntity> {
     @Select("SELECT COUNT(*) FROM interview_turn WHERE session_id=#{sessionId} AND role='CANDIDATE' AND processing_status IN ('PROCESSING','RETRYABLE_FAILED')")
     int countProcessingCandidates(@Param("sessionId") Long sessionId);
 
+    @Select("""
+        SELECT * FROM interview_turn
+        WHERE session_id=#{sessionId} AND role='INTERVIEWER'
+        ORDER BY sequence_no DESC LIMIT 1
+        """)
+    InterviewTurnEntity selectLatestInterviewer(@Param("sessionId") Long sessionId);
+
     @Update("""
         UPDATE interview_turn SET processing_status='PROCESSING', processing_started_at=#{now}
         WHERE id=#{turnId} AND processing_status IN ('RETRYABLE_FAILED','PROCESSING')
@@ -23,9 +30,20 @@ public interface InterviewTurnMapper extends BaseMapper<InterviewTurnEntity> {
     int claimRetry(@Param("turnId") Long turnId, @Param("now") LocalDateTime now,
                    @Param("staleBefore") LocalDateTime staleBefore);
 
-    @Update("UPDATE interview_turn SET processing_status='RETRYABLE_FAILED' WHERE id=#{turnId} AND processing_status='PROCESSING'")
-    int markRetryable(@Param("turnId") Long turnId);
+    @Update("""
+        UPDATE interview_turn SET processing_status='RETRYABLE_FAILED'
+        WHERE id=#{turnId} AND processing_status='PROCESSING'
+          AND processing_started_at=#{expectedLeaseStartedAt}
+        """)
+    int markRetryable(@Param("turnId") Long turnId,
+                      @Param("expectedLeaseStartedAt") LocalDateTime expectedLeaseStartedAt);
 
-    @Update("UPDATE interview_turn SET processing_status='COMPLETED', ended_at=#{now} WHERE id=#{turnId} AND processing_status='PROCESSING'")
-    int markCompleted(@Param("turnId") Long turnId, @Param("now") LocalDateTime now);
+    @Update("""
+        UPDATE interview_turn SET processing_status='COMPLETED', ended_at=#{now}
+        WHERE id=#{turnId} AND processing_status='PROCESSING'
+          AND processing_started_at=#{expectedLeaseStartedAt}
+        """)
+    int markCompleted(@Param("turnId") Long turnId,
+                      @Param("expectedLeaseStartedAt") LocalDateTime expectedLeaseStartedAt,
+                      @Param("now") LocalDateTime now);
 }

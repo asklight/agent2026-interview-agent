@@ -23,7 +23,8 @@ class RequestRateLimitFilterTest {
                 "/api/project-profiles",
                 "/api/project-profiles/12/analyze",
                 "/api/interview-sessions/21/answers",
-                "/api/interview-sessions/21/turns"
+                "/api/interview-sessions/21/turns",
+                "/api/interview-sessions/21/turns/retry-pending"
         };
 
         for (String path : paths) {

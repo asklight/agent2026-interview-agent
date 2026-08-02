@@ -3,25 +3,30 @@
     <header class="interview-room__header">
       <div class="room-brand"><span>北</span><div><strong>项目经历深挖</strong><small>沉浸式文字面试</small></div></div>
       <div class="room-status"><i :class="store.connectionStatus"></i><span>{{ connectionLabel }}</span><time>{{ elapsed }}</time></div>
-      <el-button :loading="finishing" :disabled="!session || session.status === 'FINISHED'" @click="requestFinish">结束面试</el-button>
+      <el-button :loading="finishing" :disabled="!session || session.status === 'FINISHED' || session.turnState !== 'IDLE' || submitting" @click="requestFinish">结束面试</el-button>
     </header>
 
     <section v-if="!hasAccess" class="room-empty-state">
-      <h1>无法恢复这场面试</h1><p>当前标签页中没有会话访问令牌。为了保护项目内容，系统不会通过会话 ID 绕过归属校验。</p><RouterLink class="primary-link" to="/project-deep-dive">返回项目深挖</RouterLink>
+      <h1>无法恢复这场面试</h1><p>当前页面缺少这场面试的访问凭证。为保护项目内容，请从开始面试的标签页继续。</p><RouterLink class="primary-link" to="/project-deep-dive">返回项目深挖</RouterLink>
     </section>
-    <section v-else-if="loading && !session" class="room-empty-state"><span class="analysis-state__orb"></span><h1>正在恢复面试现场</h1><p>从后端重新拉取完整对话，不依赖浏览器中的消息缓存。</p></section>
+    <section v-else-if="loading && !session" class="room-empty-state"><span class="analysis-state__orb"></span><h1>正在恢复面试现场</h1><p>正在回到刚才的对话进度，请稍候。</p></section>
     <section v-else-if="errorMessage && !session" class="room-empty-state"><h1>暂时无法恢复面试现场</h1><p>{{ errorMessage }}</p><el-button type="primary" :loading="loading" @click="load">重新连接</el-button></section>
     <section v-else-if="session" class="interview-room__body">
       <div class="interview-context-bar"><span>项目面试进行中</span><strong>{{ session.completedProbeCount }}/{{ session.totalProbeCount || '—' }} 个探查点</strong><small>过程中不展示评分，完整反馈将在结束后统一生成</small></div>
-      <InterviewMessageList :turns="session.turns" :thinking="submitting" />
+      <InterviewMessageList :turns="session.turns" :thinking="isThinking" />
       <p v-if="errorMessage" class="composer-error">{{ errorMessage }}</p>
-      <InterviewComposer v-model="answer" :submitting="submitting" :disabled="session.status === 'FINISHED'" @submit="sendAnswer" />
+      <div v-if="session.turnState === 'RETRYABLE_ERROR'" class="turn-recovery">
+        <span>上一条回答没有处理完成，可以安全重试，不会重复推进面试。</span>
+        <el-button type="primary" :loading="submitting" @click="recoverPending">重试上一条回答</el-button>
+      </div>
+      <InterviewComposer v-model="answer" :submitting="submitting"
+        :disabled="session.status === 'FINISHED' || session.turnState !== 'IDLE' || submitting" @submit="sendAnswer" />
     </section>
   </main>
 </template>
 
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { ElMessageBox } from 'element-plus'
 import { RouterLink, useRouter } from 'vue-router'
 import InterviewComposer from '@/features/project-deep-dive/components/InterviewComposer.vue'
@@ -34,10 +39,14 @@ const numericSessionId = Number(props.sessionId)
 const router = useRouter()
 const store = useInterviewSessionStore()
 store.restoreSessionAccess(numericSessionId)
-const { session, loading, submitting, finishing, errorMessage, pendingSubmission, hasAccess, load, submit, finish } = useInterviewSession(numericSessionId)
+const { session, loading, submitting, finishing, errorMessage, pendingSubmission, hasAccess,
+  isThinking, load, submit, retryPending, finish } = useInterviewSession(numericSessionId)
 const answer = ref('')
 const now = ref(Date.now())
 let timer: number | undefined
+let recoveryTimer: number | undefined
+let disposed = false
+let reportNavigationStarted = false
 
 const connectionLabel = computed(() => store.connectionStatus === 'online' ? '已连接' : store.connectionStatus === 'connecting' ? '正在恢复' : store.connectionStatus === 'offline' ? '连接中断' : '等待连接')
 const elapsed = computed(() => {
@@ -52,20 +61,50 @@ async function sendAnswer() {
   if (!content) return
   const result = await submit(content, store.inputModality)
   if (result) answer.value = ''
-  if (result?.status === 'FINISHED') await router.replace({ name: 'project-interview-report', params: { sessionId: numericSessionId } })
 }
 
 async function requestFinish() {
   await ElMessageBox.confirm('现在结束后，未覆盖的维度会标记为“未评估”，不会按零分计算。', '结束这场面试？', { confirmButtonText: '结束并查看复盘', cancelButtonText: '继续面试', type: 'warning' })
-  const result = await finish()
-  if (result?.status === 'FINISHED') await router.push({ name: 'project-interview-report', params: { sessionId: numericSessionId } })
+  await finish()
+}
+
+async function recoverPending() {
+  const result = await retryPending()
+  if (result) answer.value = ''
+}
+
+watch(() => session.value?.status, (status) => {
+  if (status !== 'FINISHED' || disposed || reportNavigationStarted) return
+  reportNavigationStarted = true
+  void router.replace({ name: 'project-interview-report', params: { sessionId: numericSessionId } })
+})
+
+function lifecycleStopped() {
+  return disposed || session.value?.status === 'FINISHED'
 }
 
 onMounted(async () => {
   await load()
-  if (pendingSubmission.value) answer.value = pendingSubmission.value.content
+  if (lifecycleStopped()) return
+  if (pendingSubmission.value) {
+    answer.value = pendingSubmission.value.content
+    if (session.value?.turnState === 'IDLE') await recoverPending()
+  }
+  if (lifecycleStopped()) return
   timer = window.setInterval(() => { now.value = Date.now() }, 1000)
-  if (session.value?.status === 'FINISHED') await router.replace({ name: 'project-interview-report', params: { sessionId: numericSessionId } })
+  recoveryTimer = window.setInterval(() => {
+    if (!disposed && session.value?.turnState === 'PROCESSING' && !loading.value) {
+      void load().then(() => {
+        if (!disposed && session.value?.turnState === 'IDLE' && pendingSubmission.value && !submitting.value) {
+          void recoverPending()
+        }
+      })
+    }
+  }, 2500)
 })
-onBeforeUnmount(() => { if (timer) window.clearInterval(timer) })
+onBeforeUnmount(() => {
+  disposed = true
+  if (timer !== undefined) window.clearInterval(timer)
+  if (recoveryTimer !== undefined) window.clearInterval(recoveryTimer)
+})
 </script>

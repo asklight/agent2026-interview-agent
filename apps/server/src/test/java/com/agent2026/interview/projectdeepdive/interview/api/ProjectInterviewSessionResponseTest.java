@@ -13,7 +13,7 @@ class ProjectInterviewSessionResponseTest {
                 "请介绍项目", "TEXT", LocalDateTime.now(), LocalDateTime.now(), LocalDateTime.now());
         String json = new ObjectMapper().registerModule(new JavaTimeModule()).writeValueAsString(new ProjectInterviewSessionResponse(
                 9L, "PROJECT_DEEP_DIVE", "IN_PROGRESS", "PROJECT_OVERVIEW", "OWNERSHIP",
-                0, 4, 3, "TEXT", List.of(turn)));
+                0, 4, 3, "TEXT", "PROCESSING", List.of(turn)));
         assertThat(json).doesNotContain("score", "hitPoints", "missingPoints", "weaknesses", "decision",
                 "modelRawResponse", "retrievalTrace", "processingStatus", "clientTurnId");
     }

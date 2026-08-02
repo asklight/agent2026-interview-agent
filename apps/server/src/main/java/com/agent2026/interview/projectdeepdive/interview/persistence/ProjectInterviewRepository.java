@@ -17,12 +17,17 @@ import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.time.temporal.ChronoUnit;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 
 @Repository
 public class ProjectInterviewRepository {
     private static final TypeReference<List<PlannedProbe>> PROBE_LIST = new TypeReference<>() {};
+
+    public record CandidateRegistration(InterviewTurn turn, boolean processingOwner) {}
+
     private final InterviewSessionMapper sessionMapper;
     private final InterviewPlanMapper planMapper;
     private final InterviewTurnMapper turnMapper;
@@ -98,43 +103,66 @@ public class ProjectInterviewRepository {
         return Optional.ofNullable(entity).map(this::toDomain);
     }
 
+    public Optional<InterviewTurn> findPendingCandidate(Long sessionId) {
+        InterviewTurnEntity entity = turnMapper.selectOne(new LambdaQueryWrapper<InterviewTurnEntity>()
+                .eq(InterviewTurnEntity::getSessionId, sessionId)
+                .eq(InterviewTurnEntity::getRole, "CANDIDATE")
+                .in(InterviewTurnEntity::getProcessingStatus, "PROCESSING", "RETRYABLE_FAILED")
+                .orderByDesc(InterviewTurnEntity::getSequenceNo)
+                .last("LIMIT 1"));
+        return Optional.ofNullable(entity).map(this::toDomain);
+    }
+
     @Transactional
-    public InterviewTurn registerCandidate(Long sessionId, long expectedVersion, String clientTurnId,
-                                           String content, String inputModality, PlannedProbe probe) {
+    public CandidateRegistration registerCandidate(Long sessionId, long expectedVersion, String clientTurnId,
+                                                   Long questionTurnId, String content, String inputModality,
+                                                   PlannedProbe probe) {
         InterviewSession locked = sessionMapper.selectForUpdate(sessionId);
         if (locked == null || !"IN_PROGRESS".equals(locked.getStatus())) return null;
         Optional<InterviewTurn> duplicate = findByClientTurnId(sessionId, clientTurnId);
-        if (duplicate.isPresent()) return duplicate.get();
+        if (duplicate.isPresent()) return new CandidateRegistration(duplicate.get(), false);
+        InterviewTurnEntity latestInterviewer = turnMapper.selectLatestInterviewer(sessionId);
+        if (latestInterviewer == null || !Objects.equals(latestInterviewer.getId(), questionTurnId)) return null;
         if (turnMapper.countProcessingCandidates(sessionId) > 0) return null;
         if (locked.getVersion() == null || locked.getVersion() != expectedVersion
                 || sessionMapper.reserveTurn(sessionId, expectedVersion) != 1) return null;
-        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime now = leaseNow();
         InterviewTurnEntity entity = new InterviewTurnEntity();
         entity.setSessionId(sessionId); entity.setSequenceNo(turnMapper.maxSequence(sessionId) + 1);
         entity.setRole("CANDIDATE"); entity.setTurnType("ANSWER"); entity.setContent(content);
-        entity.setInputModality(inputModality); entity.setClaimId(probe.claimId()); entity.setProbeId(probe.probeId());
+        entity.setInputModality(inputModality); entity.setParentTurnId(questionTurnId);
+        entity.setClaimId(probe.claimId()); entity.setProbeId(probe.probeId());
         entity.setProbeDimension(probe.dimension()); entity.setProcessingStatus("PROCESSING");
         entity.setProcessingStartedAt(now); entity.setClientTurnId(clientTurnId); entity.setStartedAt(now); entity.setCreateTime(now);
-        try { turnMapper.insert(entity); } catch (DuplicateKeyException ex) { return findByClientTurnId(sessionId, clientTurnId).orElseThrow(); }
-        return toDomain(entity);
+        try {
+            turnMapper.insert(entity);
+            return new CandidateRegistration(toDomain(entity), true);
+        } catch (DuplicateKeyException ex) {
+            return new CandidateRegistration(findByClientTurnId(sessionId, clientTurnId).orElseThrow(), false);
+        }
     }
 
     @Transactional
     public boolean claimRetry(Long turnId, LocalDateTime staleBefore) {
-        return turnMapper.claimRetry(turnId, LocalDateTime.now(), staleBefore) == 1;
+        return turnMapper.claimRetry(turnId, leaseNow(), staleBefore) == 1;
     }
 
-    @Transactional public void markRetryable(Long turnId) { turnMapper.markRetryable(turnId); }
+    @Transactional
+    public boolean markRetryable(Long turnId, LocalDateTime expectedLeaseStartedAt) {
+        return turnMapper.markRetryable(turnId, expectedLeaseStartedAt) == 1;
+    }
 
     @Transactional
-    public InterviewTurn complete(Long sessionId, Long candidateTurnId, PlannedProbe currentProbe,
+    public InterviewTurn complete(Long sessionId, Long candidateTurnId, LocalDateTime expectedLeaseStartedAt,
+                                  PlannedProbe currentProbe,
                                   TurnEvaluationResult result, String decision, PlannedProbe nextProbe,
                                   String interviewerContent, boolean retrievalDegraded) {
         InterviewSession session = sessionMapper.selectForUpdate(sessionId);
         InterviewTurnEntity candidate = turnMapper.selectById(candidateTurnId);
         if (session == null || !"IN_PROGRESS".equals(session.getStatus()) || candidate == null
-                || !"PROCESSING".equals(candidate.getProcessingStatus())) return null;
-        LocalDateTime now = LocalDateTime.now();
+                || !"PROCESSING".equals(candidate.getProcessingStatus())
+                || !Objects.equals(candidate.getProcessingStartedAt(), expectedLeaseStartedAt)) return null;
+        LocalDateTime now = leaseNow();
         TurnEvaluationEntity evaluation = new TurnEvaluationEntity();
         evaluation.setSessionId(sessionId); evaluation.setCandidateTurnId(candidateTurnId); evaluation.setProbeId(currentProbe.probeId());
         evaluation.setScoreJson(write(result.scores())); evaluation.setHitPointsJson(write(result.hitPoints()));
@@ -153,7 +181,9 @@ public class ProjectInterviewRepository {
         interviewer.setClaimId(nextProbe.claimId()); interviewer.setProbeId(nextProbe.probeId()); interviewer.setProbeDimension(nextProbe.dimension());
         interviewer.setProcessingStatus("COMPLETED"); interviewer.setStartedAt(now); interviewer.setEndedAt(now); interviewer.setCreateTime(now);
         turnMapper.insert(interviewer);
-        if (turnMapper.markCompleted(candidateTurnId, now) != 1) throw new IllegalStateException("candidate turn changed concurrently");
+        if (turnMapper.markCompleted(candidateTurnId, expectedLeaseStartedAt, now) != 1) {
+            throw new IllegalStateException("candidate turn lease changed concurrently");
+        }
 
         if ("FOLLOW_UP".equals(decision)) session.setFollowUpCount((session.getFollowUpCount() == null ? 0 : session.getFollowUpCount()) + 1);
         else {
@@ -199,6 +229,7 @@ public class ProjectInterviewRepository {
                 e.getInputModality(), e.getParentTurnId(), e.getClaimId(), e.getProbeId(), e.getProbeDimension(),
                 e.getProcessingStatus(), e.getProcessingStartedAt(), e.getClientTurnId(), e.getStartedAt(), e.getEndedAt(), e.getCreateTime());
     }
+    private LocalDateTime leaseNow() { return LocalDateTime.now().truncatedTo(ChronoUnit.MILLIS); }
     private String write(Object value) { try { return objectMapper.writeValueAsString(value); } catch (JsonProcessingException ex) { throw new IllegalStateException("interview json serialization failed", ex); } }
     private List<PlannedProbe> readProbes(String json) { try { return objectMapper.readValue(json, PROBE_LIST); } catch (JsonProcessingException ex) { throw new IllegalStateException("interview plan json invalid", ex); } }
 }

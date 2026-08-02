@@ -31,6 +31,14 @@ export function submitProjectInterviewTurn(
   )
 }
 
+export function retryPendingProjectInterviewTurn(sessionId: number, accessToken: string) {
+  return http.post<ApiResponse<ProjectInterviewSession>>(
+    `/interview-sessions/${sessionId}/turns/retry-pending`,
+    undefined,
+    resourceHeaders(accessToken),
+  )
+}
+
 export function finishProjectInterview(sessionId: number, accessToken: string) {
   return http.post<ApiResponse<ProjectInterviewSession>>(
     `/interview-sessions/${sessionId}/finish`,
