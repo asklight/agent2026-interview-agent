@@ -60,6 +60,11 @@ const router = createRouter({
           props: true,
           meta: { remountOnPathChange: true },
         },
+        {
+          path: 'history',
+          name: 'training-history',
+          component: () => import('@/features/training-history/views/TrainingHistoryView.vue'),
+        },
       ],
     },
     {

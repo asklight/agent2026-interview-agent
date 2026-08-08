@@ -420,6 +420,18 @@ svg { width: 1em; height: 1em; }
 .turn-review footer { margin-top: 11px; padding: 9px 11px; color: #456250; background: var(--green-soft); font-size: 9px; }
 
 /* Algorithm oral practice */
+.training-history-page { max-width: 980px; }
+.history-filter-row { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+.history-filter-row .el-select { width: 140px; }
+.history-list { margin-top: 20px; border-top: 1px solid var(--line-strong); }
+.history-list article { display: grid; grid-template-columns: 86px minmax(0, 1fr) auto; align-items: center; gap: 20px; min-height: 116px; padding: 18px 2px; border-bottom: 1px solid var(--line); }
+.history-type { color: var(--green); font-size: 9px; font-weight: 800; }
+.history-list h2 { margin: 0 0 6px; font-size: 16px; }
+.history-list p { margin: 0 0 7px; color: var(--muted); font-size: 10px; line-height: 1.6; }
+.history-list small { color: #929994; font-size: 8px; }
+.history-actions { display: flex; align-items: center; gap: 7px; }
+.history-actions button { display: grid; width: 32px; height: 32px; place-items: center; border: 1px solid var(--line); border-radius: 5px; color: #7c847f; background: #fff; cursor: pointer; }
+.training-history-page .el-pagination { justify-content: center; margin-top: 24px; }
 .training-entry__icon--algorithm { color: #9f4d36; background: #f5e9e4; }
 .algorithm-library { max-width: 980px; }
 .algorithm-filters { display: inline-flex; gap: 3px; padding: 3px; border: 1px solid var(--line); border-radius: 6px; background: #fff; }
@@ -643,4 +655,9 @@ svg { width: 1em; height: 1em; }
   .algorithm-filters { width: 100%; }
   .algorithm-filters button { min-width: 0; flex: 1; }
   .algorithm-dimension-list { grid-template-columns: 1fr; }
+  .history-filter-row { align-items: stretch; flex-direction: column; }
+  .history-filter-row .el-select { width: 100%; }
+  .history-list article { grid-template-columns: 1fr auto; gap: 10px; }
+  .history-type { grid-column: 1 / -1; }
+  .history-actions { align-self: end; }
 }

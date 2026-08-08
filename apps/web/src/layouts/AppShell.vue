@@ -11,6 +11,7 @@
         <RouterLink to="/practice/knowledge"><Collection /><span>八股练习</span></RouterLink>
         <RouterLink to="/practice/algorithm"><DataAnalysis /><span>算法口述</span></RouterLink>
         <RouterLink to="/project-deep-dive"><Briefcase /><span>项目深挖</span></RouterLink>
+        <RouterLink to="/history"><Clock /><span>训练历史</span></RouterLink>
       </nav>
 
       <div class="site-sidebar__footer">
@@ -29,6 +30,7 @@
           <RouterLink to="/practice/knowledge" aria-label="八股练习"><Collection /></RouterLink>
           <RouterLink to="/practice/algorithm" aria-label="算法口述"><DataAnalysis /></RouterLink>
           <RouterLink to="/project-deep-dive" aria-label="项目深挖"><Briefcase /></RouterLink>
+          <RouterLink to="/history" aria-label="训练历史"><Clock /></RouterLink>
           <button type="button" aria-label="退出登录" @click="signOut"><SwitchButton /></button>
         </nav>
       </header>
@@ -40,7 +42,7 @@
 <script setup lang="ts">
 import { RouterLink, RouterView } from 'vue-router'
 import { useRouter } from 'vue-router'
-import { Briefcase, ChatDotSquare, Collection, DataAnalysis, HomeFilled, SwitchButton, UserFilled } from '@element-plus/icons-vue'
+import { Briefcase, ChatDotSquare, Clock, Collection, DataAnalysis, HomeFilled, SwitchButton, UserFilled } from '@element-plus/icons-vue'
 import { useAuthStore } from '@/features/identity/stores/auth'
 
 const auth = useAuthStore()
