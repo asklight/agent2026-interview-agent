@@ -56,6 +56,15 @@ public class MybatisProjectProfileRepository implements ProjectProfileRepository
     }
 
     @Override
+    public List<ProjectProfile> findReadyByUserId(Long userId) {
+        return profileMapper.selectList(new LambdaQueryWrapper<ProjectProfileEntity>()
+                        .eq(ProjectProfileEntity::getUserId, userId)
+                        .eq(ProjectProfileEntity::getAnalysisStatus, ProjectAnalysisStatus.READY.name())
+                        .orderByDesc(ProjectProfileEntity::getUpdateTime))
+                .stream().map(this::toDomain).toList();
+    }
+
+    @Override
     public List<ProjectClaim> findClaims(Long profileId) {
         return claimMapper.selectList(new LambdaQueryWrapper<ProjectClaimEntity>()
                         .eq(ProjectClaimEntity::getProjectProfileId, profileId)

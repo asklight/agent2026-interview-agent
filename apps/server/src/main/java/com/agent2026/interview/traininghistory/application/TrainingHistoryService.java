@@ -13,7 +13,7 @@ import java.util.Set;
 
 @Service
 public class TrainingHistoryService {
-    private static final Set<String> TYPES = Set.of("KNOWLEDGE", "PROJECT_DEEP_DIVE", "ALGORITHM");
+    private static final Set<String> TYPES = Set.of("KNOWLEDGE", "PROJECT_DEEP_DIVE", "ALGORITHM", "COMPREHENSIVE_SIMULATION");
     private static final Set<String> STATUSES = Set.of("IN_PROGRESS", "FINISHED", "ABANDONED", "CANCELLED");
     private final TrainingHistoryMapper mapper;
 
@@ -29,6 +29,7 @@ public class TrainingHistoryService {
         int safeSize = Math.min(50, Math.max(1, pageSize));
         mapper.syncInterviews(userId);
         mapper.syncAlgorithms(userId);
+        mapper.syncSimulations(userId);
         var items = mapper.page(userId, normalizedType, normalizedStatus, safeSize, (safePage - 1) * safeSize)
                 .stream().map(TrainingHistoryItemResponse::from).toList();
         return new TrainingHistoryPageResponse(items,

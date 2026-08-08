@@ -15,6 +15,8 @@ public interface ProjectProfileRepository {
 
     Optional<ProjectProfile> findById(Long profileId);
 
+    List<ProjectProfile> findReadyByUserId(Long userId);
+
     List<ProjectClaim> findClaims(Long profileId);
 
     boolean beginAnalysis(Long profileId, long expectedVersion);

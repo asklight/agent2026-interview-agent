@@ -65,6 +65,11 @@ const router = createRouter({
           name: 'training-history',
           component: () => import('@/features/training-history/views/TrainingHistoryView.vue'),
         },
+        {
+          path: 'simulation/new',
+          name: 'simulation-setup',
+          component: () => import('@/features/interview-simulation/views/SimulationSetupView.vue'),
+        },
       ],
     },
     {
@@ -85,6 +90,20 @@ const router = createRouter({
       path: '/algorithm-interview/:sessionId(\\d+)',
       name: 'algorithm-room',
       component: () => import('@/features/algorithm-practice/views/AlgorithmRoomView.vue'),
+      props: true,
+      meta: { remountOnPathChange: true, requiresAuth: true },
+    },
+    {
+      path: '/simulation/:sessionId(\\d+)',
+      name: 'simulation-room',
+      component: () => import('@/features/interview-simulation/views/SimulationRoomView.vue'),
+      props: true,
+      meta: { remountOnPathChange: true, requiresAuth: true },
+    },
+    {
+      path: '/simulation/:sessionId(\\d+)/report',
+      name: 'simulation-report',
+      component: () => import('@/features/interview-simulation/views/SimulationReportView.vue'),
       props: true,
       meta: { remountOnPathChange: true, requiresAuth: true },
     },

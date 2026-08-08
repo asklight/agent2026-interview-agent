@@ -17,4 +17,7 @@ public interface InterviewSessionMapper extends BaseMapper<InterviewSession> {
         WHERE id=#{sessionId} AND version=#{expectedVersion} AND status='IN_PROGRESS'
         """)
     int reserveTurn(@Param("sessionId") Long sessionId, @Param("expectedVersion") long expectedVersion);
+
+    @Update("UPDATE interview_session SET simulation_id=#{simulationId} WHERE id=#{sessionId}")
+    int attachSimulation(@Param("sessionId") Long sessionId, @Param("simulationId") Long simulationId);
 }

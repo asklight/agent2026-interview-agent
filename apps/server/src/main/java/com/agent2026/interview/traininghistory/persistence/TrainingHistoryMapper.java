@@ -25,7 +25,7 @@ public interface TrainingHistoryMapper extends BaseMapper<TrainingHistoryEntity>
                    s.start_time, s.end_time
             FROM interview_session s
             LEFT JOIN project_profile p ON p.id=s.project_profile_id
-            WHERE s.user_id=#{userId}
+            WHERE s.user_id=#{userId} AND s.simulation_id IS NULL
             ON DUPLICATE KEY UPDATE status=VALUES(status), title=VALUES(title), summary=VALUES(summary),
                                     finished_at=VALUES(finished_at), user_id=VALUES(user_id)
             """)
@@ -39,11 +39,21 @@ public interface TrainingHistoryMapper extends BaseMapper<TrainingHistoryEntity>
                           ' · ', REPLACE(p.tags, ',', ' / ')),
                    s.started_at, s.finished_at
             FROM algorithm_session s JOIN algorithm_problem p ON p.id=s.problem_id
-            WHERE s.user_id=#{userId}
+            WHERE s.user_id=#{userId} AND s.simulation_id IS NULL
             ON DUPLICATE KEY UPDATE status=VALUES(status), title=VALUES(title), summary=VALUES(summary),
                                     finished_at=VALUES(finished_at), user_id=VALUES(user_id)
             """)
     int syncAlgorithms(@Param("userId") Long userId);
+
+    @Insert("""
+            INSERT INTO training_history(user_id, training_type, source_session_id, status, title, summary,
+                                         started_at, finished_at)
+            SELECT user_id, 'COMPREHENSIVE_SIMULATION', id, status, 'Java 综合模拟面试',
+                   '项目深挖 / 八股练习 / 算法口述', started_at, finished_at
+            FROM simulation_session WHERE user_id=#{userId}
+            ON DUPLICATE KEY UPDATE status=VALUES(status), finished_at=VALUES(finished_at), user_id=VALUES(user_id)
+            """)
+    int syncSimulations(@Param("userId") Long userId);
 
     @Select("""
             <script>

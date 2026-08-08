@@ -31,6 +31,7 @@ class TrainingHistoryServiceTest {
         var order = inOrder(mapper);
         order.verify(mapper).syncInterviews(7L);
         order.verify(mapper).syncAlgorithms(7L);
+        order.verify(mapper).syncSimulations(7L);
         order.verify(mapper).page(7L, null, null, 20, 0);
         assertThat(result.items()).hasSize(1);
         assertThat(result.total()).isEqualTo(1);

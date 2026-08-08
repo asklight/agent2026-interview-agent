@@ -30,6 +30,14 @@
         </div>
         <div class="training-entry__meta"><span>专项 · 连续追问</span><ArrowRight /></div>
       </RouterLink>
+      <RouterLink class="training-entry training-entry--simulation" to="/simulation/new">
+        <span class="training-entry__icon training-entry__icon--simulation"><VideoCamera /></span>
+        <div class="training-entry__body">
+          <p>FULL INTERVIEW SIMULATION</p><h2>综合模拟</h2>
+          <span>把项目深挖、基础问答和算法口述连成一场完整技术面试。过程保持沉浸，结束后统一复盘。</span>
+        </div>
+        <div class="training-entry__meta"><span>综合 · 面试节奏</span><ArrowRight /></div>
+      </RouterLink>
     </section>
 
     <section class="home-path" aria-label="训练路径">
@@ -42,5 +50,5 @@
 
 <script setup lang="ts">
 import { RouterLink } from 'vue-router'
-import { ArrowRight, Briefcase, Collection, DataAnalysis } from '@element-plus/icons-vue'
+import { ArrowRight, Briefcase, Collection, DataAnalysis, VideoCamera } from '@element-plus/icons-vue'
 </script>

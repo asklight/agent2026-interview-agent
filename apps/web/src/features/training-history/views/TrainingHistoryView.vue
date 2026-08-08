@@ -44,7 +44,7 @@ const type = ref('')
 const status = ref('')
 const loading = ref(false)
 const error = ref('')
-const types = [{ value: '', label: '全部' }, { value: 'KNOWLEDGE', label: '八股' }, { value: 'PROJECT_DEEP_DIVE', label: '项目' }, { value: 'ALGORITHM', label: '算法' }]
+const types = [{ value: '', label: '全部' }, { value: 'KNOWLEDGE', label: '八股' }, { value: 'PROJECT_DEEP_DIVE', label: '项目' }, { value: 'ALGORITHM', label: '算法' }, { value: 'COMPREHENSIVE_SIMULATION', label: '综合' }]
 onMounted(() => load(1))
 
 async function load(nextPage: number) {
@@ -57,9 +57,10 @@ async function load(nextPage: number) {
 }
 function setType(value: string) { type.value = value; load(1) }
 async function hide(id: number) { await hideTrainingHistory(id); await load(page.value) }
-function typeName(value: TrainingType) { return { KNOWLEDGE: '八股练习', PROJECT_DEEP_DIVE: '项目深挖', ALGORITHM: '算法口述' }[value] }
+function typeName(value: TrainingType) { return { KNOWLEDGE: '八股练习', PROJECT_DEEP_DIVE: '项目深挖', ALGORITHM: '算法口述', COMPREHENSIVE_SIMULATION: '综合模拟' }[value] }
 function formatTime(value: string) { return new Intl.DateTimeFormat('zh-CN', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' }).format(new Date(value)) }
 function target(item: TrainingHistoryItem) {
+  if (item.trainingType === 'COMPREHENSIVE_SIMULATION') return item.status === 'FINISHED' ? `/simulation/${item.sourceSessionId}/report` : `/simulation/${item.sourceSessionId}`
   if (item.trainingType === 'ALGORITHM') return item.status === 'FINISHED' ? `/practice/algorithm/${item.sourceSessionId}/report` : `/algorithm-interview/${item.sourceSessionId}`
   if (item.trainingType === 'PROJECT_DEEP_DIVE') return item.status === 'FINISHED' ? `/interview/${item.sourceSessionId}/report` : `/interview/${item.sourceSessionId}`
   return '/practice/knowledge'

@@ -1,4 +1,4 @@
-export type TrainingType = 'KNOWLEDGE' | 'PROJECT_DEEP_DIVE' | 'ALGORITHM'
+export type TrainingType = 'KNOWLEDGE' | 'PROJECT_DEEP_DIVE' | 'ALGORITHM' | 'COMPREHENSIVE_SIMULATION'
 
 export interface TrainingHistoryItem {
   id: number

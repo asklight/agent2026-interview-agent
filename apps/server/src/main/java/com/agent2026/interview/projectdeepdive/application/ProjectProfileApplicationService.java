@@ -88,6 +88,13 @@ public class ProjectProfileApplicationService {
         return new ProjectProfileResult(profile, repository.findClaims(profileId));
     }
 
+    public List<ProjectProfile> listReady(Long userId) {
+        if (userId == null || userId <= 0) {
+            throw new BusinessException(ErrorCode.AUTH_REQUIRED);
+        }
+        return repository.findReadyByUserId(userId);
+    }
+
     public ProjectProfileResult analyze(Long profileId, String rawToken) {
         ProjectProfile profile = requireOwned(profileId, rawToken);
         if (profile.analysisStatus() == ProjectAnalysisStatus.ANALYZING
