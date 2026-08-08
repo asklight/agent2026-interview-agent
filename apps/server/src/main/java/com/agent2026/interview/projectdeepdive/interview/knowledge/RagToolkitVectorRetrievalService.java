@@ -3,6 +3,7 @@ package com.agent2026.interview.projectdeepdive.interview.knowledge;
 import com.agent2026.interview.config.RagToolkitProperties;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
@@ -29,6 +30,7 @@ public class RagToolkitVectorRetrievalService implements VectorRetrievalService 
     private final ObjectMapper objectMapper;
     private final RestClient restClient;
 
+    @Autowired
     public RagToolkitVectorRetrievalService(RagToolkitProperties properties, ObjectMapper objectMapper) {
         this(properties, objectMapper, buildRestClient(properties));
     }
