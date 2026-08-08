@@ -28,6 +28,22 @@ const http = axios.create({
   headers: { 'Content-Type': 'application/json' },
 })
 
+let accessToken: string | null = null
+let refreshAccessToken: (() => Promise<string | null>) | null = null
+
+export function setAccessToken(token: string | null) {
+  accessToken = token
+}
+
+export function setRefreshHandler(handler: () => Promise<string | null>) {
+  refreshAccessToken = handler
+}
+
+http.interceptors.request.use((config) => {
+  if (accessToken) config.headers.Authorization = `Bearer ${accessToken}`
+  return config
+})
+
 function readableMessage(code?: number, fallback?: string) {
   if (code === 40110) return '学校 API Key 无效、过期或无权限，请检查后端环境变量'
   if (code === 42910) return '学校 API 调用过于频繁或额度受限，请稍后再试'
@@ -47,7 +63,17 @@ http.interceptors.response.use(
     }
     return response
   },
-  (error: AxiosError<ApiResponse>) => {
+  async (error: AxiosError<ApiResponse>) => {
+    const request = error.config as (typeof error.config & { _authRetried?: boolean })
+    const isAuthEndpoint = request?.url?.startsWith('/auth/')
+    if (error.response?.status === 401 && request && !request._authRetried && !isAuthEndpoint && refreshAccessToken) {
+      request._authRetried = true
+      const token = await refreshAccessToken()
+      if (token) {
+        request.headers.Authorization = `Bearer ${token}`
+        return http.request(request)
+      }
+    }
     const businessCode = error.response?.data?.code
     const message = error.code === 'ECONNABORTED'
       ? '请求超时，请稍后重试'

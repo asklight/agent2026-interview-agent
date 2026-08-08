@@ -35,12 +35,29 @@ if [ -z "$(env_value RESOURCE_TOKEN_SECRET)" ]; then
   echo "Generated and persisted a new RESOURCE_TOKEN_SECRET."
 fi
 
+if [ -z "$(env_value JWT_SECRET)" ]; then
+  generated_secret="$(od -An -N32 -tx1 /dev/urandom | tr -d ' \n')"
+  if grep -q '^JWT_SECRET=' "$ENV_FILE"; then
+    temporary_env="$(mktemp)"
+    awk -v replacement="JWT_SECRET=$generated_secret" '
+      /^JWT_SECRET=/ { print replacement; next }
+      { print }
+    ' "$ENV_FILE" > "$temporary_env"
+    mv "$temporary_env" "$ENV_FILE"
+  else
+    printf '\nJWT_SECRET=%s\n' "$generated_secret" >> "$ENV_FILE"
+  fi
+  unset generated_secret
+  echo "Generated and persisted a new JWT_SECRET."
+fi
+
 chmod 600 "$ENV_FILE"
 
 required_variables=(
   MYSQL_PASSWORD
   MYSQL_ROOT_PASSWORD
   RESOURCE_TOKEN_SECRET
+  JWT_SECRET
   TJU_LLM_API_URL
   TJU_LLM_API_KEY
 )

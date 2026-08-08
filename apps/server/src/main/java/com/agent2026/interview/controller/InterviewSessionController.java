@@ -13,6 +13,7 @@ import com.agent2026.interview.projectdeepdive.interview.api.ProjectInterviewSes
 import com.agent2026.interview.projectdeepdive.interview.api.SubmitProjectTurnRequest;
 import com.agent2026.interview.projectdeepdive.interview.application.DeepDiveInterviewApplicationService;
 import com.agent2026.interview.projectdeepdive.report.api.ProjectInterviewReportResponse;
+import com.agent2026.interview.identity.security.CurrentUserProvider;
 import jakarta.validation.Valid;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -29,21 +30,25 @@ public class InterviewSessionController {
     private final InterviewSessionService interviewSessionService;
     private final InterviewReportService interviewReportService;
     private final DeepDiveInterviewApplicationService deepDiveInterviewService;
+    private final CurrentUserProvider currentUser;
 
     public InterviewSessionController(InterviewSessionService interviewSessionService, InterviewReportService interviewReportService,
-                                      DeepDiveInterviewApplicationService deepDiveInterviewService) {
+                                      DeepDiveInterviewApplicationService deepDiveInterviewService,
+                                      CurrentUserProvider currentUser) {
         this.interviewSessionService = interviewSessionService;
         this.interviewReportService = interviewReportService;
         this.deepDiveInterviewService = deepDiveInterviewService;
+        this.currentUser = currentUser;
     }
 
     @PostMapping
     public Result<?> create(@Valid @RequestBody CreateInterviewSessionParam param,
                             @RequestHeader(value = "X-Resource-Token", required = false) String token) {
+        Long userId = currentUser.requireUserId();
         if ("PROJECT_DEEP_DIVE".equalsIgnoreCase(param.getMode())) {
             return Result.success(deepDiveInterviewService.create(param, token));
         }
-        return Result.success(interviewSessionService.create(param));
+        return Result.success(interviewSessionService.create(param, userId));
     }
 
     @GetMapping("/{sessionId}/turns")
@@ -71,14 +76,14 @@ public class InterviewSessionController {
         if (deepDiveInterviewService.supports(sessionId)) {
             return Result.success(deepDiveInterviewService.getTurns(sessionId, token));
         }
-        return Result.success(interviewSessionService.get(sessionId));
+        return Result.success(interviewSessionService.get(sessionId, currentUser.requireUserId()));
     }
 
     @GetMapping("/{sessionId}/current-question")
     public Result<CurrentQuestionVO> currentQuestion(@PathVariable Long sessionId,
             @RequestHeader(value = "X-Resource-Token", required = false) String token) {
         if (deepDiveInterviewService.supports(sessionId)) deepDiveInterviewService.rejectLegacyEndpoint(sessionId, token);
-        return Result.success(interviewSessionService.currentQuestion(sessionId));
+        return Result.success(interviewSessionService.currentQuestion(sessionId, currentUser.requireUserId()));
     }
 
     @PostMapping("/{sessionId}/answers")
@@ -86,14 +91,14 @@ public class InterviewSessionController {
                                                @RequestHeader(value = "X-Resource-Token", required = false) String token,
                                                @Valid @RequestBody SubmitAnswerParam param) {
         if (deepDiveInterviewService.supports(sessionId)) deepDiveInterviewService.rejectLegacyEndpoint(sessionId, token);
-        return Result.success(interviewSessionService.submitAnswer(sessionId, param));
+        return Result.success(interviewSessionService.submitAnswer(sessionId, param, currentUser.requireUserId()));
     }
 
     @PostMapping("/{sessionId}/next-question")
     public Result<InterviewSessionVO> nextQuestion(@PathVariable Long sessionId,
             @RequestHeader(value = "X-Resource-Token", required = false) String token) {
         if (deepDiveInterviewService.supports(sessionId)) deepDiveInterviewService.rejectLegacyEndpoint(sessionId, token);
-        return Result.success(interviewSessionService.nextQuestion(sessionId));
+        return Result.success(interviewSessionService.nextQuestion(sessionId, currentUser.requireUserId()));
     }
 
     @PostMapping("/{sessionId}/finish")
@@ -102,7 +107,7 @@ public class InterviewSessionController {
         if (deepDiveInterviewService.supports(sessionId)) {
             return Result.success(deepDiveInterviewService.finish(sessionId, token));
         }
-        return Result.success(interviewSessionService.finish(sessionId));
+        return Result.success(interviewSessionService.finish(sessionId, currentUser.requireUserId()));
     }
 
     @GetMapping("/{sessionId}/report")
@@ -111,6 +116,7 @@ public class InterviewSessionController {
         if (deepDiveInterviewService.supports(sessionId)) {
             return Result.success(deepDiveInterviewService.getReport(sessionId, token));
         }
+        interviewSessionService.get(sessionId, currentUser.requireUserId());
         return Result.success(interviewReportService.get(sessionId));
     }
 }

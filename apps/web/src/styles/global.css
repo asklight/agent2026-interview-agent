@@ -88,13 +88,28 @@ svg { width: 1em; height: 1em; }
 .site-nav a svg { flex: 0 0 auto; font-size: 17px; }
 .site-nav a:hover { color: var(--ink); background: #eef0ed; }
 .site-nav a.router-link-active { color: #fff; background: #2b332e; }
-.site-sidebar__footer { display: flex; align-items: center; gap: 9px; margin-top: auto; padding: 15px 10px 4px; border-top: 1px solid var(--line); }
+.site-sidebar__footer { display: flex; align-items: center; gap: 9px; margin-top: auto; padding: 15px 8px 4px; border-top: 1px solid var(--line); }
 .site-sidebar__footer .status-dot { width: 8px; height: 8px; border-radius: 50%; background: #3e9a70; }
+.account-avatar { display: grid; width: 28px; height: 28px; flex: 0 0 auto; place-items: center; border-radius: 6px; color: var(--green); background: var(--green-soft); }
+.site-sidebar__footer > div { min-width: 0; flex: 1; }
 .site-sidebar__footer strong, .site-sidebar__footer small { display: block; }
-.site-sidebar__footer strong { font-size: 11px; }
+.site-sidebar__footer strong { overflow: hidden; font-size: 11px; text-overflow: ellipsis; white-space: nowrap; }
 .site-sidebar__footer small { margin-top: 2px; color: #909792; font-size: 9px; }
+.account-logout { display: grid; width: 28px; height: 28px; flex: 0 0 auto; place-items: center; border: 0; border-radius: 5px; color: #7a827d; background: transparent; cursor: pointer; }
+.account-logout:hover { color: var(--red); background: var(--red-soft); }
 .site-workspace { min-width: 0; }
 .mobile-header { display: none; }
+
+/* Identity */
+.auth-page { display: grid; min-height: 100vh; place-items: center; padding: 32px 20px; background: #eef0ed; }
+.auth-panel { width: min(400px, 100%); padding: 34px 36px 32px; border: 1px solid var(--line-strong); border-radius: 8px; background: var(--paper); box-shadow: 0 18px 50px rgb(32 38 34 / 8%); }
+.auth-brand { display: inline-flex; align-items: center; gap: 8px; color: var(--ink); font-size: 13px; font-weight: 800; }
+.auth-brand svg { color: var(--green); font-size: 20px; }
+.auth-heading { margin: 32px 0 26px; }
+.auth-heading .section-kicker { margin: 0 0 7px; color: var(--green); font-size: 10px; font-weight: 800; }
+.auth-heading h1 { margin: 0; font-size: 25px; line-height: 1.3; }
+.auth-switch { margin: 22px 0 0; color: var(--muted); font-size: 12px; text-align: center; }
+.auth-switch a { color: var(--green); font-weight: 750; }
 
 .page-frame, .home-page { width: min(1120px, calc(100% - 64px)); margin: 0 auto; padding: 48px 0 72px; }
 .workspace-heading { display: flex; align-items: flex-end; justify-content: space-between; gap: 48px; margin-bottom: 42px; }
@@ -411,7 +426,7 @@ svg { width: 1em; height: 1em; }
   .site-shell { grid-template-columns: 78px minmax(0, 1fr); }
   .site-sidebar { padding-inline: 10px; }
   .site-brand { justify-content: center; padding: 0; }
-  .site-brand > span:last-child, .site-nav a span, .site-sidebar__footer div { display: none; }
+  .site-brand > span:last-child, .site-nav a span, .site-sidebar__footer div, .account-logout { display: none; }
   .site-nav a { justify-content: center; padding: 0; }
   .site-sidebar__footer { justify-content: center; }
   .command-center--active { grid-template-columns: 220px minmax(390px, 1fr) 270px; }
@@ -452,7 +467,7 @@ svg { width: 1em; height: 1em; }
   .mobile-brand { display: flex; align-items: center; gap: 8px; font-size: 13px; }
   .mobile-brand > svg { color: var(--green); font-size: 20px; }
   .mobile-header nav { display: flex; gap: 4px; }
-  .mobile-header nav a { display: grid; width: 36px; height: 36px; place-items: center; border-radius: 6px; color: #646d67; font-size: 17px; }
+  .mobile-header nav a, .mobile-header nav button { display: grid; width: 36px; height: 36px; place-items: center; border: 0; border-radius: 6px; color: #646d67; background: transparent; font-size: 17px; }
   .mobile-header nav a.router-link-active { color: #fff; background: #2d3530; }
   .workspace-heading h1 { font-size: 32px; }
   .home-path { grid-template-columns: 1fr; gap: 18px; }
@@ -481,6 +496,8 @@ svg { width: 1em; height: 1em; }
 }
 
 @media (max-width: 480px) {
+  .auth-page { align-items: stretch; padding: 0; background: var(--paper); }
+  .auth-panel { width: 100%; min-height: 100vh; padding: 34px 24px; border: 0; border-radius: 0; box-shadow: none; }
   .page-frame, .home-page { width: min(100% - 24px, 440px); padding: 28px 0 52px; }
   .workspace-heading { margin-bottom: 24px; }
   .workspace-heading h1 { font-size: 29px; }

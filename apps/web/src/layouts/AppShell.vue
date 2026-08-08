@@ -13,8 +13,11 @@
       </nav>
 
       <div class="site-sidebar__footer">
-        <span class="status-dot"></span>
-        <div><strong>训练服务</strong><small>数据仅用于当前练习</small></div>
+        <span class="account-avatar"><UserFilled /></span>
+        <div><strong>{{ auth.user?.username }}</strong><small>训练记录已同步</small></div>
+        <el-tooltip content="退出登录" placement="top">
+          <button class="account-logout" type="button" aria-label="退出登录" @click="signOut"><SwitchButton /></button>
+        </el-tooltip>
       </div>
     </aside>
 
@@ -24,6 +27,7 @@
         <nav aria-label="移动端导航">
           <RouterLink to="/practice/knowledge" aria-label="八股练习"><Collection /></RouterLink>
           <RouterLink to="/project-deep-dive" aria-label="项目深挖"><Briefcase /></RouterLink>
+          <button type="button" aria-label="退出登录" @click="signOut"><SwitchButton /></button>
         </nav>
       </header>
       <RouterView />
@@ -33,5 +37,15 @@
 
 <script setup lang="ts">
 import { RouterLink, RouterView } from 'vue-router'
-import { Briefcase, ChatDotSquare, Collection, HomeFilled } from '@element-plus/icons-vue'
+import { useRouter } from 'vue-router'
+import { Briefcase, ChatDotSquare, Collection, HomeFilled, SwitchButton, UserFilled } from '@element-plus/icons-vue'
+import { useAuthStore } from '@/features/identity/stores/auth'
+
+const auth = useAuthStore()
+const router = useRouter()
+
+async function signOut() {
+  await auth.signOut()
+  await router.replace('/login')
+}
 </script>

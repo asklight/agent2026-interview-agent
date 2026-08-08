@@ -19,6 +19,8 @@ import com.agent2026.interview.service.InterviewReportService;
 import com.agent2026.interview.vo.CurrentQuestionVO;
 import com.agent2026.interview.vo.InterviewSessionVO;
 import com.agent2026.interview.vo.SubmitAnswerVO;
+import com.agent2026.interview.shared.error.BusinessException;
+import com.agent2026.interview.shared.error.ErrorCode;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
@@ -68,12 +70,19 @@ public class InterviewSessionServiceImpl implements InterviewSessionService {
     @Override
     @Transactional
     public InterviewSessionVO create(CreateInterviewSessionParam param) {
+        return create(param, null);
+    }
+
+    @Override
+    @Transactional
+    public InterviewSessionVO create(CreateInterviewSessionParam param, Long userId) {
         if (!StringUtils.hasText(param.getModule())) {
             throw new IllegalStateException("module cannot be blank for JAVA_CORE");
         }
         QuestionCard firstQuestion = questionSelector.selectFirst(param.getModule(), param.getDifficulty());
 
         InterviewSession session = new InterviewSession();
+        session.setUserId(userId);
         session.setMode(MODE_JAVA_CORE);
         session.setModule(param.getModule());
         session.setDifficulty(param.getDifficulty());
@@ -91,21 +100,37 @@ public class InterviewSessionServiceImpl implements InterviewSessionService {
 
     @Override
     public InterviewSessionVO get(Long sessionId) {
-        InterviewSession session = requireSession(sessionId);
+        return get(sessionId, null);
+    }
+
+    @Override
+    public InterviewSessionVO get(Long sessionId, Long userId) {
+        InterviewSession session = requireSession(sessionId, userId);
         QuestionCard question = session.getCurrentQuestionId() == null ? null : requireQuestion(session.getCurrentQuestionId());
         return toSessionVO(session, question);
     }
 
     @Override
     public CurrentQuestionVO currentQuestion(Long sessionId) {
-        InterviewSession session = requireActiveSession(sessionId);
+        return currentQuestion(sessionId, null);
+    }
+
+    @Override
+    public CurrentQuestionVO currentQuestion(Long sessionId, Long userId) {
+        InterviewSession session = requireActiveSession(sessionId, userId);
         return toQuestionVO(session, requireQuestion(session.getCurrentQuestionId()));
     }
 
     @Override
     @Transactional
     public SubmitAnswerVO submitAnswer(Long sessionId, SubmitAnswerParam param) {
-        InterviewSession session = requireActiveSession(sessionId);
+        return submitAnswer(sessionId, param, null);
+    }
+
+    @Override
+    @Transactional
+    public SubmitAnswerVO submitAnswer(Long sessionId, SubmitAnswerParam param, Long userId) {
+        InterviewSession session = requireActiveSession(sessionId, userId);
         QuestionCard question = requireQuestion(session.getCurrentQuestionId());
         String questionType = currentQuestionType(session);
         if (QUESTION_TYPE_EVALUATED.equals(questionType)) {
@@ -133,7 +158,13 @@ public class InterviewSessionServiceImpl implements InterviewSessionService {
     @Override
     @Transactional
     public InterviewSessionVO nextQuestion(Long sessionId) {
-        InterviewSession session = requireActiveSession(sessionId);
+        return nextQuestion(sessionId, null);
+    }
+
+    @Override
+    @Transactional
+    public InterviewSessionVO nextQuestion(Long sessionId, Long userId) {
+        InterviewSession session = requireActiveSession(sessionId, userId);
         if (!QUESTION_TYPE_EVALUATED.equals(currentQuestionType(session))) {
             throw new IllegalStateException("Please submit the current answer before moving to next question");
         }
@@ -161,7 +192,13 @@ public class InterviewSessionServiceImpl implements InterviewSessionService {
     @Override
     @Transactional
     public InterviewSessionVO finish(Long sessionId) {
-        InterviewSession session = requireSession(sessionId);
+        return finish(sessionId, null);
+    }
+
+    @Override
+    @Transactional
+    public InterviewSessionVO finish(Long sessionId, Long userId) {
+        InterviewSession session = requireSession(sessionId, userId);
         finishSession(session);
         return toSessionVO(session, null);
     }
@@ -254,15 +291,26 @@ public class InterviewSessionServiceImpl implements InterviewSessionService {
     }
 
     private InterviewSession requireSession(Long sessionId) {
+        return requireSession(sessionId, null);
+    }
+
+    private InterviewSession requireSession(Long sessionId, Long userId) {
         InterviewSession session = sessionMapper.selectById(sessionId);
         if (session == null) {
-            throw new IllegalStateException("Interview session not found: " + sessionId);
+            throw new BusinessException(ErrorCode.INTERVIEW_SESSION_NOT_FOUND);
+        }
+        if (userId != null && !userId.equals(session.getUserId())) {
+            throw new BusinessException(ErrorCode.INTERVIEW_SESSION_ACCESS_DENIED);
         }
         return session;
     }
 
     private InterviewSession requireActiveSession(Long sessionId) {
-        InterviewSession session = requireSession(sessionId);
+        return requireActiveSession(sessionId, null);
+    }
+
+    private InterviewSession requireActiveSession(Long sessionId, Long userId) {
+        InterviewSession session = requireSession(sessionId, userId);
         if (STATUS_FINISHED.equals(session.getStatus())) {
             throw new IllegalStateException("Interview session already finished: " + sessionId);
         }

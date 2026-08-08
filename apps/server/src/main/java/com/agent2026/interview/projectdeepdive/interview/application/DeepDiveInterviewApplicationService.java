@@ -25,6 +25,8 @@ import com.agent2026.interview.shared.error.ErrorCode;
 import com.agent2026.interview.shared.security.ResourceTokenService;
 import com.agent2026.interview.projectdeepdive.report.api.ProjectInterviewReportResponse;
 import com.agent2026.interview.projectdeepdive.report.application.ProjectInterviewReportService;
+import com.agent2026.interview.identity.application.ResourceOwnershipService;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
@@ -41,16 +43,29 @@ public class DeepDiveInterviewApplicationService {
     private final TurnEvaluator turnEvaluator;
     private final ResourceTokenService tokenService;
     private final ProjectInterviewReportService reportService;
+    private final ResourceOwnershipService ownershipService;
+
+    @Autowired
+    public DeepDiveInterviewApplicationService(ProjectProfileRepository profileRepository,
+                                               ProjectInterviewRepository interviewRepository,
+                                               ProjectInterviewPlanner planner, ProjectDeepDivePolicy policy,
+                                               VectorRetrievalService retrievalService, TurnEvaluator turnEvaluator,
+                                               ResourceTokenService tokenService, ProjectInterviewReportService reportService,
+                                               ResourceOwnershipService ownershipService) {
+        this.profileRepository = profileRepository; this.interviewRepository = interviewRepository;
+        this.planner = planner; this.policy = policy; this.retrievalService = retrievalService;
+        this.turnEvaluator = turnEvaluator; this.tokenService = tokenService;
+        this.reportService = reportService;
+        this.ownershipService = ownershipService;
+    }
 
     public DeepDiveInterviewApplicationService(ProjectProfileRepository profileRepository,
                                                ProjectInterviewRepository interviewRepository,
                                                ProjectInterviewPlanner planner, ProjectDeepDivePolicy policy,
                                                VectorRetrievalService retrievalService, TurnEvaluator turnEvaluator,
                                                ResourceTokenService tokenService, ProjectInterviewReportService reportService) {
-        this.profileRepository = profileRepository; this.interviewRepository = interviewRepository;
-        this.planner = planner; this.policy = policy; this.retrievalService = retrievalService;
-        this.turnEvaluator = turnEvaluator; this.tokenService = tokenService;
-        this.reportService = reportService;
+        this(profileRepository, interviewRepository, planner, policy, retrievalService, turnEvaluator,
+                tokenService, reportService, null);
     }
 
     public ProjectInterviewSessionResponse create(CreateInterviewSessionParam param, String token) {
@@ -67,6 +82,7 @@ public class DeepDiveInterviewApplicationService {
         String modality = normalizeModality(param.getInputModality());
         List<PlannedProbe> probes = planner.createPlan(claims);
         InterviewSession session = interviewRepository.create(profile, claims, probes, maxFollowUps, modality);
+        if (ownershipService != null) ownershipService.attachInterviewToCurrentUser(session.getId());
         return response(session, interviewRepository.findPlan(session.getId()), interviewRepository.findTurns(session.getId()));
     }
 
@@ -197,8 +213,7 @@ public class DeepDiveInterviewApplicationService {
     private ProjectProfile requireOwnedProfile(Long profileId, String token) {
         ProjectProfile profile = profileRepository.findById(profileId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.PROJECT_PROFILE_NOT_FOUND));
-        if (token == null || token.isBlank() || !tokenService.matches(token, profile.accessTokenHash()))
-            throw new BusinessException(ErrorCode.PROJECT_PROFILE_ACCESS_DENIED);
+        requireProfileAccess(profile, token, ErrorCode.PROJECT_PROFILE_ACCESS_DENIED);
         return profile;
     }
 
@@ -208,9 +223,18 @@ public class DeepDiveInterviewApplicationService {
         if (!"PROJECT_DEEP_DIVE".equals(session.getMode())) throw new BusinessException(ErrorCode.INTERVIEW_STATE_CONFLICT);
         ProjectProfile profile = profileRepository.findById(session.getProjectProfileId())
                 .orElseThrow(() -> new BusinessException(ErrorCode.INTERVIEW_SESSION_NOT_FOUND));
-        if (token == null || token.isBlank() || !tokenService.matches(token, profile.accessTokenHash()))
-            throw new BusinessException(ErrorCode.INTERVIEW_SESSION_ACCESS_DENIED);
+        requireProfileAccess(profile, token, ErrorCode.INTERVIEW_SESSION_ACCESS_DENIED);
         return session;
+    }
+
+    private void requireProfileAccess(ProjectProfile profile, String token, ErrorCode deniedCode) {
+        if (ownershipService != null) {
+            ownershipService.requireProjectAccess(profile.id(), profile.accessTokenHash(), token, deniedCode);
+            return;
+        }
+        if (token == null || token.isBlank() || !tokenService.matches(token, profile.accessTokenHash())) {
+            throw new BusinessException(deniedCode);
+        }
     }
 
     private PlannedProbe currentProbe(InterviewSession session, InterviewPlan plan) {

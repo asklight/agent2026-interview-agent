@@ -13,6 +13,7 @@ public class InterviewSession {
 
     @TableId(type = IdType.AUTO)
     private Long id;
+    private Long userId;
     private String mode;
     private String feedbackTiming;
     private String module;
@@ -45,6 +46,9 @@ public class InterviewSession {
     public void setId(Long id) {
         this.id = id;
     }
+
+    public Long getUserId() { return userId; }
+    public void setUserId(Long userId) { this.userId = userId; }
 
     public String getMode() {
         return mode;

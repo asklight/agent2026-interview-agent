@@ -17,5 +17,9 @@ tju:
     proxy-port: ${TJU_LLM_PROXY_PORT:0}
 
 security:
+  jwt:
+    secret: ${JWT_SECRET}
+    refresh-cookie-secure: ${JWT_COOKIE_SECURE:false}
+    allowed-origin: ${WEB_ORIGIN:}
   resource-token:
     secret: ${RESOURCE_TOKEN_SECRET}

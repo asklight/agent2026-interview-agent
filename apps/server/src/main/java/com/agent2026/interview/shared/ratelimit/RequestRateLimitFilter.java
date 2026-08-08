@@ -49,7 +49,8 @@ public class RequestRateLimitFilter extends OncePerRequestFilter {
             return true;
         }
         String path = pathWithinApplication(request);
-        return !("/api/project-profiles".equals(path)
+        return !(path.startsWith("/api/auth/")
+                || "/api/project-profiles".equals(path)
                 || "/api/project-profiles/".equals(path)
                 || PROJECT_ANALYZE.matcher(path).matches()
                 || INTERVIEW_LLM_OPERATION.matcher(path).matches());

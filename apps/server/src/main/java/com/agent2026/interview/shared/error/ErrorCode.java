@@ -6,6 +6,13 @@ package com.agent2026.interview.shared.error;
 public enum ErrorCode {
 
     PARAM_INVALID(40000, "请求参数不合法"),
+    AUTH_REQUIRED(40100, "请先登录"),
+    AUTH_CREDENTIALS_INVALID(40101, "用户名或密码错误"),
+    AUTH_ACCESS_TOKEN_INVALID(40102, "登录凭证无效或已过期"),
+    AUTH_REFRESH_TOKEN_INVALID(40103, "登录状态已失效，请重新登录"),
+    AUTH_REFRESH_TOKEN_REPLAYED(40104, "检测到异常登录状态，请重新登录"),
+    USERNAME_ALREADY_EXISTS(40930, "用户名已被使用"),
+    USER_DISABLED(40310, "账号已被禁用"),
     RESOURCE_NOT_FOUND(40400, "请求的资源不存在"),
     PROJECT_PROFILE_NOT_FOUND(40401, "项目档案不存在"),
     PROJECT_PROFILE_ANALYSIS_FAILED(50001, "项目档案分析失败，请稍后重试"),

@@ -15,6 +15,8 @@ import com.agent2026.interview.shared.error.BusinessException;
 import com.agent2026.interview.shared.error.ErrorCode;
 import com.agent2026.interview.shared.security.IssuedResourceToken;
 import com.agent2026.interview.shared.security.ResourceTokenService;
+import com.agent2026.interview.identity.application.ResourceOwnershipService;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.util.LinkedHashSet;
@@ -38,6 +40,24 @@ public class ProjectProfileApplicationService {
     private final ProjectProfileAnalysisValidator analysisValidator;
     private final ProjectProfilePolicy policy;
     private final ResourceTokenService tokenService;
+    private final ResourceOwnershipService ownershipService;
+
+    @Autowired
+    public ProjectProfileApplicationService(ProjectProfileRepository repository,
+                                            ProjectProfileAnalyzer analyzer,
+                                            ProjectDescriptionSanitizer sanitizer,
+                                            ProjectProfileAnalysisValidator analysisValidator,
+                                            ProjectProfilePolicy policy,
+                                            ResourceTokenService tokenService,
+                                            ResourceOwnershipService ownershipService) {
+        this.repository = repository;
+        this.analyzer = analyzer;
+        this.sanitizer = sanitizer;
+        this.analysisValidator = analysisValidator;
+        this.policy = policy;
+        this.tokenService = tokenService;
+        this.ownershipService = ownershipService;
+    }
 
     public ProjectProfileApplicationService(ProjectProfileRepository repository,
                                             ProjectProfileAnalyzer analyzer,
@@ -45,12 +65,7 @@ public class ProjectProfileApplicationService {
                                             ProjectProfileAnalysisValidator analysisValidator,
                                             ProjectProfilePolicy policy,
                                             ResourceTokenService tokenService) {
-        this.repository = repository;
-        this.analyzer = analyzer;
-        this.sanitizer = sanitizer;
-        this.analysisValidator = analysisValidator;
-        this.policy = policy;
-        this.tokenService = tokenService;
+        this(repository, analyzer, sanitizer, analysisValidator, policy, tokenService, null);
     }
 
     public CreatedProjectProfileResult create(String description) {
@@ -64,6 +79,7 @@ public class ProjectProfileApplicationService {
         }
         IssuedResourceToken token = tokenService.issue();
         ProjectProfile profile = repository.createDraft(token.tokenHash(), sanitizedDescription);
+        if (ownershipService != null) ownershipService.attachProjectToCurrentUser(profile.id());
         return new CreatedProjectProfileResult(new ProjectProfileResult(profile, List.of()), token.rawToken());
     }
 
@@ -148,9 +164,12 @@ public class ProjectProfileApplicationService {
         }
         ProjectProfile profile = repository.findById(profileId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.PROJECT_PROFILE_NOT_FOUND));
-        if (rawToken == null || rawToken.isBlank()
+        if (ownershipService != null) {
+            ownershipService.requireProjectAccess(profileId, profile.accessTokenHash(), rawToken,
+                    ErrorCode.PROJECT_PROFILE_ACCESS_DENIED);
+        } else if (rawToken == null || rawToken.isBlank()
                 || !tokenService.matches(rawToken, profile.accessTokenHash())) {
-            throw new BusinessException(ErrorCode.PROJECT_PROFILE_ACCESS_DENIED);
+                throw new BusinessException(ErrorCode.PROJECT_PROFILE_ACCESS_DENIED);
         }
         return profile;
     }
