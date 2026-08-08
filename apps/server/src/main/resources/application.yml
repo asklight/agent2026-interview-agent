@@ -23,6 +23,15 @@ logging:
   level:
     com.agent2026.interview: info
 
+rag-toolkit:
+  enabled: ${RAG_TOOLKIT_ENABLED:false}
+  base-url: ${RAG_TOOLKIT_BASE_URL:http://127.0.0.1:8100}
+  profile: ${RAG_TOOLKIT_PROFILE:interview}
+  search-token: ${RAG_SEARCH_TOKEN:}
+  connect-timeout: ${RAG_TOOLKIT_CONNECT_TIMEOUT:2s}
+  read-timeout: ${RAG_TOOLKIT_READ_TIMEOUT:5s}
+  top-k: ${RAG_TOOLKIT_TOP_K:5}
+
 security:
   jwt:
     secret: ${JWT_SECRET:dev-only-jwt-secret-change-before-production-32-bytes}
