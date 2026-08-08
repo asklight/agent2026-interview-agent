@@ -9,6 +9,7 @@
       <nav class="site-nav" aria-label="主要导航">
         <RouterLink to="/" exact-active-class="router-link-active"><HomeFilled /><span>训练首页</span></RouterLink>
         <RouterLink to="/practice/knowledge"><Collection /><span>八股练习</span></RouterLink>
+        <RouterLink to="/practice/algorithm"><DataAnalysis /><span>算法口述</span></RouterLink>
         <RouterLink to="/project-deep-dive"><Briefcase /><span>项目深挖</span></RouterLink>
       </nav>
 
@@ -26,6 +27,7 @@
         <RouterLink class="mobile-brand" to="/"><ChatDotSquare /><strong>北洋面试官</strong></RouterLink>
         <nav aria-label="移动端导航">
           <RouterLink to="/practice/knowledge" aria-label="八股练习"><Collection /></RouterLink>
+          <RouterLink to="/practice/algorithm" aria-label="算法口述"><DataAnalysis /></RouterLink>
           <RouterLink to="/project-deep-dive" aria-label="项目深挖"><Briefcase /></RouterLink>
           <button type="button" aria-label="退出登录" @click="signOut"><SwitchButton /></button>
         </nav>
@@ -38,7 +40,7 @@
 <script setup lang="ts">
 import { RouterLink, RouterView } from 'vue-router'
 import { useRouter } from 'vue-router'
-import { Briefcase, ChatDotSquare, Collection, HomeFilled, SwitchButton, UserFilled } from '@element-plus/icons-vue'
+import { Briefcase, ChatDotSquare, Collection, DataAnalysis, HomeFilled, SwitchButton, UserFilled } from '@element-plus/icons-vue'
 import { useAuthStore } from '@/features/identity/stores/auth'
 
 const auth = useAuthStore()

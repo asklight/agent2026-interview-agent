@@ -22,6 +22,14 @@
         </div>
         <div class="training-entry__meta"><span>沉浸 · 连续追问</span><ArrowRight /></div>
       </RouterLink>
+      <RouterLink class="training-entry" to="/practice/algorithm">
+        <span class="training-entry__icon training-entry__icon--algorithm"><DataAnalysis /></span>
+        <div class="training-entry__body">
+          <p>ALGORITHM ORAL PRACTICE</p><h2>算法口述</h2>
+          <span>按真实面试节奏讲清题意、方案、优化、复杂度和边界。过程不打断，结束后按原话证据复盘。</span>
+        </div>
+        <div class="training-entry__meta"><span>专项 · 连续追问</span><ArrowRight /></div>
+      </RouterLink>
     </section>
 
     <section class="home-path" aria-label="训练路径">
@@ -34,5 +42,5 @@
 
 <script setup lang="ts">
 import { RouterLink } from 'vue-router'
-import { ArrowRight, Briefcase, Collection } from '@element-plus/icons-vue'
+import { ArrowRight, Briefcase, Collection, DataAnalysis } from '@element-plus/icons-vue'
 </script>

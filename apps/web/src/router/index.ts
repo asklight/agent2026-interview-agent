@@ -48,6 +48,18 @@ const router = createRouter({
           name: 'knowledge-practice',
           component: () => import('@/features/knowledge-practice/views/KnowledgePracticeView.vue'),
         },
+        {
+          path: 'practice/algorithm',
+          name: 'algorithm-selection',
+          component: () => import('@/features/algorithm-practice/views/AlgorithmSelectionView.vue'),
+        },
+        {
+          path: 'practice/algorithm/:sessionId(\\d+)/report',
+          name: 'algorithm-report',
+          component: () => import('@/features/algorithm-practice/views/AlgorithmReportView.vue'),
+          props: true,
+          meta: { remountOnPathChange: true },
+        },
       ],
     },
     {
@@ -61,6 +73,13 @@ const router = createRouter({
       path: '/interview/:sessionId(\\d+)/report',
       name: 'project-interview-report',
       component: () => import('@/features/project-deep-dive/views/InterviewReport.vue'),
+      props: true,
+      meta: { remountOnPathChange: true, requiresAuth: true },
+    },
+    {
+      path: '/algorithm-interview/:sessionId(\\d+)',
+      name: 'algorithm-room',
+      component: () => import('@/features/algorithm-practice/views/AlgorithmRoomView.vue'),
       props: true,
       meta: { remountOnPathChange: true, requiresAuth: true },
     },
