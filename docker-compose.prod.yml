@@ -74,7 +74,7 @@ services:
       server:
         condition: service_healthy
     ports:
-      - "${WEB_PORT:-80}:80"
+      - "${WEB_PORT:-9999}:80"
     healthcheck:
       test: ["CMD-SHELL", "wget -qO- -T 5 http://127.0.0.1/ >/dev/null || exit 1"]
       interval: 15s

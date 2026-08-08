@@ -19,6 +19,33 @@ env_value() {
   ' "$ENV_FILE"
 }
 
+set_env_value() {
+  local name="$1"
+  local value="$2"
+  local temporary_env
+  temporary_env="$(mktemp)"
+
+  awk -v key="$name" -v replacement="$name=$value" '
+    BEGIN { replaced = 0 }
+    index($0, key "=") == 1 {
+      if (!replaced) {
+        print replacement
+        replaced = 1
+      }
+      next
+    }
+    { print }
+    END {
+      if (!replaced) print replacement
+    }
+  ' "$ENV_FILE" > "$temporary_env"
+  mv "$temporary_env" "$ENV_FILE"
+}
+
+set_env_value WEB_PORT 9999
+set_env_value WEB_ORIGIN http://82.157.209.181:9999
+echo "Production web endpoint configured at http://82.157.209.181:9999/."
+
 if [ -z "$(env_value RESOURCE_TOKEN_SECRET)" ]; then
   generated_secret="$(od -An -N32 -tx1 /dev/urandom | tr -d ' \n')"
   if grep -q '^RESOURCE_TOKEN_SECRET=' "$ENV_FILE"; then
