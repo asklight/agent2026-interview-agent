@@ -1,19 +1,13 @@
 <template>
   <main class="command-center" :class="{ 'command-center--active': (activeQuestion || evaluationText) && !report }">
-    <RouterLink class="knowledge-home-link" to="/">返回首页</RouterLink>
+    <header class="knowledge-topbar">
+      <div><p class="page-kicker">KNOWLEDGE PRACTICE</p><h1>八股练习</h1></div>
+      <div class="connection" :class="{ online: healthy }"><Connection /><span>{{ healthy ? '训练服务已连接' : healthMessage || '正在连接' }}</span></div>
+    </header>
+
     <aside class="control-rail">
-      <div class="brand">
-        <span class="brand-mark">北</span>
-        <div><strong>北洋面试官</strong><small>Java 后端训练控制台</small></div>
-      </div>
-
-      <div class="connection" :class="{ online: healthy }">
-        <Connection :size="16" />
-        <span>{{ healthy ? 'AI 训练服务已连接' : healthMessage || '正在连接训练服务' }}</span>
-      </div>
-
       <section class="setup-card">
-        <p class="eyebrow">训练配置</p>
+        <div class="rail-section-title"><span>训练配置</span><small>选择范围后立即开始</small></div>
         <el-form label-position="top">
           <el-form-item label="知识模块">
             <el-select v-model="selectedModule" :loading="moduleLoading" class="full-width" placeholder="选择模块">
@@ -48,15 +42,12 @@
     </aside>
 
     <section class="training-stage">
-      <header class="stage-header">
-        <div><p class="eyebrow">AI INTERVIEW STUDIO</p><h1>{{ stageTitle }}</h1></div>
-        <el-tag v-if="session" effect="dark" :type="session.status === 'FINISHED' ? 'success' : 'primary'">{{ session.status === 'FINISHED' ? '训练完成' : '进行中' }}</el-tag>
-      </header>
+      <header class="stage-header"><h2>{{ stageTitle }}</h2><span v-if="session" class="stage-status" :class="{ done: session.status === 'FINISHED' }">{{ session.status === 'FINISHED' ? '训练完成' : '进行中' }}</span></header>
 
       <section v-if="report" class="report-dashboard">
         <div class="report-hero">
-          <div><p class="eyebrow">SESSION REVIEW</p><h2>这轮训练，已经沉淀为你的下一步。</h2><p>完成 {{ report.answeredCount }} 轮回答 · {{ report.scoreLevel }}</p></div>
-          <div class="score-orbit"><strong>{{ report.totalScore }}</strong><span>综合得分</span></div>
+          <div><p class="page-kicker">SESSION REVIEW</p><h2>本轮训练已完成</h2><p>完成 {{ report.answeredCount }} 轮回答 · {{ report.scoreLevel }}</p></div>
+          <div class="score-summary"><strong>{{ report.totalScore }}</strong><span>综合得分</span></div>
         </div>
         <div class="report-grid">
           <article class="report-card positive"><h3><CircleCheck :size="18" />表现亮点</h3><ul><li v-for="item in report.strengths" :key="item">{{ item }}</li></ul></article>
@@ -67,33 +58,33 @@
       </section>
 
       <section v-else-if="activeQuestion || evaluationText" class="interview-workspace">
-        <div v-if="activeQuestion" class="question-card">
-          <div class="question-meta"><el-tag effect="plain">{{ moduleNames[activeQuestion.module] || activeQuestion.module }}</el-tag><span>{{ activeQuestion.questionType === 'FOLLOW_UP' ? '追问 · 深入验证' : '主问题 · 思路展开' }}</span></div>
+        <section v-if="activeQuestion" class="question-card">
+          <div class="question-meta"><span>{{ moduleNames[activeQuestion.module] || activeQuestion.module }}</span><small>{{ activeQuestion.questionType === 'FOLLOW_UP' ? '追问 · 深入验证' : '主问题 · 思路展开' }}</small></div>
           <h2>{{ activeQuestion.questionText }}</h2>
-          <div class="question-hint"><VideoPlay :size="16" />建议先用一句话给出结论，再拆解原理和真实业务场景。</div>
-        </div>
-        <div v-else class="question-card question-card--complete">
-          <p class="eyebrow">QUESTION COMPLETED</p><h2>本题回答已完成，查看右侧反馈后进入下一题。</h2><div class="question-hint"><CircleCheck :size="16" />你的训练记录和 AI 点评已保存。</div>
-        </div>
-        <div class="answer-card">
-          <div class="answer-header"><div><p class="eyebrow">YOUR ANSWER</p><h3>组织你的面试回答</h3></div><span>{{ answerText.length }} 字</span></div>
+          <div class="question-hint">先给结论，再补原理、场景和边界。</div>
+        </section>
+        <section v-else class="question-card question-card--complete">
+          <CircleCheck /><div><p class="page-kicker">QUESTION COMPLETED</p><h2>本题已完成，查看反馈后继续。</h2><p>回答和点评已经保存。</p></div>
+        </section>
+        <section class="answer-card">
+          <div class="answer-header"><div><p class="page-kicker">YOUR ANSWER</p><h3>你的回答</h3></div><span>{{ answerText.length }}/2000</span></div>
           <el-input v-model="answerText" class="answer-input" :rows="12" maxlength="2000" placeholder="从结论开始。可以谈机制、取舍、真实项目案例和异常边界……" show-word-limit type="textarea" @keydown.ctrl.enter="submitAnswer" />
           <div class="answer-actions">
             <span>Ctrl + Enter 提交</span>
             <div><el-button :disabled="!session || session.status === 'FINISHED'" @click="finishSession">结束训练</el-button><el-button :disabled="!canSubmit" :loading="submitLoading" type="primary" @click="submitAnswer"><Check :size="16" />提交回答</el-button></div>
           </div>
-        </div>
+        </section>
 
       </section>
 
       <section v-else class="welcome-state">
-        <div class="welcome-orb"><VideoPlay :size="36" /></div><p class="eyebrow">READY WHEN YOU ARE</p><h2>把“会背”训练成<br /><em>能讲清楚。</em></h2><p>从左侧选择模块和难度，开启一场带追问、评分与复盘的 Java 后端面试。</p>
+        <span class="welcome-icon"><Collection /></span><div><p class="page-kicker">READY</p><h2>选择一个模块，开始答题</h2><p>八股练习会即时反馈，不会占用项目面试的沉浸流程。</p></div>
       </section>
     </section>
 
     <aside v-if="(activeQuestion || evaluationText) && !report" class="feedback-rail">
-      <div class="feedback-head"><div><p class="eyebrow">AI FEEDBACK</p><h3>本轮反馈</h3></div><strong v-if="feedbackScore !== null">{{ feedbackScore }}<small>分</small></strong></div>
-      <div v-if="!evaluationText" class="feedback-empty"><div><strong>等待你的回答</strong><br />提交后，AI 会在这里给出命中要点、遗漏点和下一步建议。</div></div>
+      <div class="feedback-head"><div><p class="page-kicker">AI FEEDBACK</p><h3>本轮反馈</h3></div><strong v-if="feedbackScore !== null">{{ feedbackScore }}<small>分</small></strong></div>
+      <div v-if="!evaluationText" class="feedback-empty"><div><strong>等待回答</strong><p>提交后显示命中点、遗漏点和下一步建议。</p></div></div>
       <div v-else class="feedback-body">
         <section v-if="hitPoints.length" class="feedback-list"><h4>命中要点</h4><span v-for="item in hitPoints" :key="item">{{ item }}</span></section>
         <section v-if="missingPoints.length" class="feedback-list"><h4>待补要点</h4><span v-for="item in missingPoints" :key="item">{{ item }}</span></section>
@@ -121,9 +112,8 @@
 
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
-import { RouterLink } from 'vue-router'
 import { ElMessage } from 'element-plus'
-import { ArrowRight, Check, CircleCheck, Compass, Connection, RefreshRight, VideoPlay, Warning } from '@element-plus/icons-vue'
+import { ArrowRight, Check, CircleCheck, Collection, Compass, Connection, RefreshRight, VideoPlay, Warning } from '@element-plus/icons-vue'
 import { getHealth } from '@/api/modules/health'
 import { getQuestionModules } from '@/api/modules/questionCard'
 import { createInterviewSession, finishInterviewSession, getInterviewReport, nextInterviewQuestion, submitInterviewAnswer, type CurrentQuestion, type InterviewReport, type InterviewSession, type SubmitAnswerResult } from '@/api/modules/interview'

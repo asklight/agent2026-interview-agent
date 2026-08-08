@@ -12,13 +12,14 @@
       @keydown.ctrl.enter.prevent="$emit('submit')"
     />
     <div class="interview-composer__actions">
-      <div><VoiceControl /><span>当前为文字面试 · Ctrl + Enter 提交</span></div>
-      <el-button type="primary" :loading="submitting" :disabled="disabled || !modelValue.trim()" @click="$emit('submit')">发送回答</el-button>
+      <div><VoiceControl /><span>文字输入</span></div>
+      <el-button type="primary" :loading="submitting" :disabled="disabled || !modelValue.trim()" @click="$emit('submit')"><Promotion />发送回答</el-button>
     </div>
   </section>
 </template>
 
 <script setup lang="ts">
+import { Promotion } from '@element-plus/icons-vue'
 import VoiceControl from './VoiceControl.vue'
 
 defineProps<{ modelValue: string; submitting?: boolean; disabled?: boolean }>()

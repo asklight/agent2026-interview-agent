@@ -1,39 +1,38 @@
 <template>
   <main class="home-page">
-    <section class="home-hero">
-      <div class="home-hero__copy">
-        <p class="page-kicker">JAVA INTERVIEW PRACTICE</p>
-        <h1>把知识答对，<br />也把项目讲透。</h1>
-        <p>八股练习保持轻量、即时反馈；项目深挖模拟真实面试，围绕你的职责、指标、技术原理和方案取舍连续追问。</p>
-      </div>
-      <div class="home-hero__signal" aria-hidden="true">
-        <span>项目声明</span><i></i><span>证据追问</span><i></i><span>面试复盘</span>
-      </div>
+    <header class="workspace-heading">
+      <div><p class="page-kicker">INTERVIEW WORKBENCH</p><h1>今天练什么？</h1></div>
+      <p>八股用来快速校准知识，项目深挖用来练清楚真实经历。两种训练，各自保持合适的重量。</p>
+    </header>
+
+    <section class="training-entry-list" aria-label="训练模块">
+      <RouterLink class="training-entry" to="/practice/knowledge">
+        <span class="training-entry__icon training-entry__icon--knowledge"><Collection /></span>
+        <div class="training-entry__body">
+          <p>KNOWLEDGE PRACTICE</p><h2>八股练习</h2>
+          <span>选一个知识模块，连续完成 3 到 10 道题。每题即时反馈，适合热身和查漏补缺。</span>
+        </div>
+        <div class="training-entry__meta"><span>轻量 · 即时反馈</span><ArrowRight /></div>
+      </RouterLink>
+      <RouterLink class="training-entry" to="/project-deep-dive">
+        <span class="training-entry__icon training-entry__icon--project"><Briefcase /></span>
+        <div class="training-entry__body">
+          <p>PROJECT DEEP DIVE</p><h2>项目深挖</h2>
+          <span>从你的项目事实出发，接受连续追问。面试过程不展示评分，结束后按证据复盘。</span>
+        </div>
+        <div class="training-entry__meta"><span>沉浸 · 连续追问</span><ArrowRight /></div>
+      </RouterLink>
     </section>
 
-    <section class="training-entry-grid" aria-label="训练模块">
-      <RouterLink class="training-entry training-entry--practice" to="/practice/knowledge">
-        <span class="training-entry__number">01</span>
-        <div>
-          <p>KNOWLEDGE PRACTICE</p>
-          <h2>八股专项练习</h2>
-          <span>快速选题、即时评分、一次针对性追问。适合查漏补缺和面试前热身。</span>
-        </div>
-        <strong>开始练习 →</strong>
-      </RouterLink>
-      <RouterLink class="training-entry training-entry--project" to="/project-deep-dive">
-        <span class="training-entry__number">02</span>
-        <div>
-          <p>PROJECT DEEP DIVE</p>
-          <h2>项目经历深挖</h2>
-          <span>粘贴真实项目，确认系统提取的信息，进入连续追问的沉浸式文字面试。</span>
-        </div>
-        <strong>进入项目面试 →</strong>
-      </RouterLink>
+    <section class="home-path" aria-label="训练路径">
+      <div><span>01</span><strong>知识校准</strong><small>先确认基础概念能讲清楚</small></div>
+      <i></i><div><span>02</span><strong>项目表达</strong><small>再把真实经历讲出证据</small></div>
+      <i></i><div><span>03</span><strong>复盘改进</strong><small>最后只看可执行的下一步</small></div>
     </section>
   </main>
 </template>
 
 <script setup lang="ts">
 import { RouterLink } from 'vue-router'
+import { ArrowRight, Briefcase, Collection } from '@element-plus/icons-vue'
 </script>

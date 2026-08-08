@@ -1,10 +1,10 @@
 <template>
   <section class="project-input-card">
     <div class="section-heading">
-      <div><p class="page-kicker">STEP 01 · PROJECT CONTEXT</p><h2>先把项目原样讲给我听</h2></div>
+      <div><p class="page-kicker">STEP 01 · PROJECT CONTEXT</p><h2>输入项目经历</h2></div>
       <span>{{ modelValue.length }}/20000</span>
     </div>
-    <p class="section-intro">可以直接粘贴简历中的项目经历，也可以补充你真实负责的工作。请先删除手机号、邮箱和公司敏感数据。</p>
+    <p class="section-intro">粘贴简历中的项目经历，并补充你真实负责的工作、方案依据和结果指标。</p>
     <el-input
       :model-value="modelValue"
       type="textarea"
@@ -15,15 +15,17 @@
       @update:model-value="$emit('update:modelValue', $event)"
     />
     <div class="project-input-card__footer">
-      <span>草稿仅保存在当前浏览器会话中</span>
+      <span><Lock />草稿仅保存在当前浏览器会话中，请先移除敏感信息</span>
       <el-button type="primary" size="large" :loading="loading" :disabled="modelValue.trim().length < 20" @click="$emit('analyze')">
-        分析项目经历
+        <MagicStick />分析项目经历
       </el-button>
     </div>
   </section>
 </template>
 
 <script setup lang="ts">
+import { Lock, MagicStick } from '@element-plus/icons-vue'
+
 defineProps<{ modelValue: string; loading?: boolean }>()
 defineEmits<{ 'update:modelValue': [value: string]; analyze: [] }>()
 </script>

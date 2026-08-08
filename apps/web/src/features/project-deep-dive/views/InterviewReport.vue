@@ -1,8 +1,7 @@
 <template>
   <main class="project-report-page page-frame">
-    <header class="page-heading report-page-heading">
-      <RouterLink to="/">← 返回首页</RouterLink>
-      <div><p class="page-kicker">PROJECT INTERVIEW REVIEW</p><h1>项目面试复盘</h1></div>
+    <header class="workspace-heading report-page-heading">
+      <div><RouterLink class="back-link" to="/">← 返回首页</RouterLink><p class="page-kicker">PROJECT INTERVIEW REVIEW</p><h1>项目面试复盘</h1></div>
       <RouterLink class="secondary-link" to="/project-deep-dive">再练一个项目</RouterLink>
     </header>
 
@@ -12,8 +11,18 @@
 
     <template v-else>
       <section class="project-report-hero">
-        <div><p class="page-kicker">OVERALL</p><h2>这场项目面试已经沉淀为可追溯的改进方向。</h2><p>完成 {{ report.rounds.length }} 轮回答 · 维度覆盖率 {{ report.coverageRate }}%</p></div>
-        <div v-if="typeof report.totalScore === 'number'" class="score-orbit"><strong>{{ report.totalScore }}</strong><span>综合得分</span></div>
+        <div><p class="page-kicker">OVERALL</p><h2>基于这场面试真实回答生成</h2><p>先看结论，再回到每一轮证据。</p></div>
+        <div class="report-overview__stats">
+          <span><strong>{{ report.rounds.length }}</strong><small>回答轮次</small></span>
+          <span><strong>{{ report.coverageRate }}%</strong><small>维度覆盖</small></span>
+          <span v-if="typeof report.totalScore === 'number'"><strong>{{ report.totalScore }}</strong><small>综合得分</small></span>
+        </div>
+      </section>
+
+      <section class="report-summary-grid report-section">
+        <article><h3>表现亮点</h3><p v-for="item in report.strengths" :key="keyOf(item)"><span>{{ item.text }}</span><small>{{ evidenceOf(item) }}</small></p></article>
+        <article><h3>需要补强</h3><p v-for="item in [...report.weaknesses, ...report.risks]" :key="keyOf(item)"><span>{{ item.text }}</span><small>{{ evidenceOf(item) }}</small></p></article>
+        <article><h3>下一轮建议</h3><p v-for="item in report.recommendations" :key="keyOf(item)"><span>{{ item.text }}</span><small>{{ evidenceOf(item) }}</small></p></article>
       </section>
 
       <section v-if="dimensions.length" class="report-section"><div class="report-section__heading"><p class="page-kicker">DIMENSIONS</p><h2>能力维度</h2></div><div class="dimension-grid"><ReportDimensionCard v-for="item in dimensions" :key="item.dimension" :dimension="item" /></div></section>
@@ -21,12 +30,6 @@
       <section v-if="report.claimReviews.length" class="report-section"><div class="report-section__heading"><p class="page-kicker">CLAIMS</p><h2>项目声明复盘</h2></div><div class="claim-review-list"><article v-for="claim in report.claimReviews" :key="claim.claimId"><span>Claim #{{ claim.claimId }}</span><h3>围绕这条项目声明的证据汇总</h3><div><b v-for="item in claim.strengths" :key="keyOf(item)">{{ item.text }}</b><b v-for="item in [...claim.weaknesses, ...claim.risks]" :key="keyOf(item)">{{ item.text }}</b></div><p v-for="item in claim.recommendations" :key="keyOf(item)">{{ item.text }}</p></article></div></section>
 
       <section v-if="report.rounds.length" class="report-section"><div class="report-section__heading"><p class="page-kicker">EVIDENCE</p><h2>逐轮回答证据</h2></div><div class="turn-review-list"><TurnReview v-for="item in report.rounds" :key="item.candidateTurnId" :review="item" /></div></section>
-
-      <section class="report-summary-grid">
-        <article><h3>表现亮点</h3><p v-for="item in report.strengths" :key="keyOf(item)"><span>{{ item.text }}</span><small>{{ evidenceOf(item) }}</small></p></article>
-        <article><h3>需要补强</h3><p v-for="item in [...report.weaknesses, ...report.risks]" :key="keyOf(item)"><span>{{ item.text }}</span><small>{{ evidenceOf(item) }}</small></p></article>
-        <article><h3>下一轮建议</h3><p v-for="item in report.recommendations" :key="keyOf(item)"><span>{{ item.text }}</span><small>{{ evidenceOf(item) }}</small></p></article>
-      </section>
     </template>
   </main>
 </template>

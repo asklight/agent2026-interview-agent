@@ -1,10 +1,15 @@
 <template>
   <main class="project-setup page-frame">
-    <header class="page-heading">
-      <RouterLink to="/project-deep-dive">← 项目深挖</RouterLink>
-      <div><p class="page-kicker">PROJECT SETUP</p><h1>{{ profile ? '确认项目档案' : '准备你的项目面试' }}</h1></div>
-      <el-tag v-if="profile" :type="statusMeta.type" effect="plain">{{ statusMeta.label }}</el-tag>
+    <header class="workspace-heading setup-heading">
+      <div><RouterLink class="back-link" to="/project-deep-dive">← 项目深挖</RouterLink><p class="page-kicker">PROJECT SETUP</p><h1>{{ profile ? '确认项目档案' : '准备项目面试' }}</h1></div>
+      <div class="setup-heading__aside"><p>先把项目事实整理准确，面试官才会沿着真实证据继续追问。</p><el-tag v-if="profile" :type="statusMeta.type" effect="plain">{{ statusMeta.label }}</el-tag></div>
     </header>
+
+    <ol class="setup-steps" aria-label="项目面试准备进度">
+      <li :class="{ active: !profile, done: Boolean(profile) }"><span>1</span><div><strong>输入项目</strong><small>提供真实经历</small></div></li>
+      <li :class="{ active: Boolean(profile) && profile?.analysisStatus !== 'READY', done: profile?.analysisStatus === 'READY' }"><span>2</span><div><strong>确认事实</strong><small>修正提取结果</small></div></li>
+      <li :class="{ active: profile?.analysisStatus === 'READY' }"><span>3</span><div><strong>开始面试</strong><small>设置时长与追问</small></div></li>
+    </ol>
 
     <div v-if="accessLost" class="access-lost-state">
       <h2>当前页面缺少这个项目的访问凭证</h2>

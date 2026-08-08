@@ -29,12 +29,12 @@ const router = createRouter({
           component: () => import('@/features/project-deep-dive/views/ProjectSetup.vue'),
           props: true,
         },
+        {
+          path: 'practice/knowledge',
+          name: 'knowledge-practice',
+          component: () => import('@/features/knowledge-practice/views/KnowledgePracticeView.vue'),
+        },
       ],
-    },
-    {
-      path: '/practice/knowledge',
-      name: 'knowledge-practice',
-      component: () => import('@/features/knowledge-practice/views/KnowledgePracticeView.vue'),
     },
     {
       path: '/interview/:sessionId(\\d+)',

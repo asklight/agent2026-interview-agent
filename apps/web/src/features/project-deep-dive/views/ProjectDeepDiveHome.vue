@@ -1,23 +1,31 @@
 <template>
   <main class="project-landing page-frame">
-    <section class="project-landing__hero">
+    <header class="workspace-heading project-landing__heading">
+      <div><p class="page-kicker">PROJECT DEEP DIVE</p><h1>项目深挖</h1></div>
+      <p>把一段真实项目经历整理成可验证的事实，再进入连续追问。这里不是知识测验，而是一场完整面试。</p>
+    </header>
+
+    <section class="project-start-band">
       <div>
-        <p class="page-kicker">PROJECT DEEP DIVE</p>
-        <h1>不是再背一遍技术名词，<br />而是把你的项目经得起追问。</h1>
-        <p>系统会先提取技术栈、个人职责、关键指标和需要验证的项目声明。确认无误后，再围绕真实性、原理、取舍与故障边界连续追问。</p>
-        <div class="project-landing__actions">
-          <RouterLink class="primary-link" to="/project-deep-dive/new">开始准备项目</RouterLink>
-          <RouterLink v-if="hasDraft" class="secondary-link" to="/project-deep-dive/new">继续上次草稿</RouterLink>
-        </div>
+        <span class="project-start-band__icon"><Briefcase /></span>
+        <div><strong>{{ hasDraft ? '上次的项目草稿还在' : '准备一段真实项目经历' }}</strong><p>{{ hasDraft ? '可以直接从本浏览器保存的内容继续。' : '建议包含背景、职责、方案、指标和一次具体难点。' }}</p></div>
       </div>
-      <aside class="deep-dive-map">
-        <div v-for="(item, index) in flow" :key="item.title"><span>0{{ index + 1 }}</span><strong>{{ item.title }}</strong><p>{{ item.description }}</p></div>
-      </aside>
+      <RouterLink class="primary-link" to="/project-deep-dive/new">{{ hasDraft ? '继续准备' : '开始准备' }}<ArrowRight /></RouterLink>
     </section>
-    <section class="deep-dive-principles">
-      <article><strong>过程不泄题</strong><p>面试中只出现自然对话，分数、命中点和内部决策统一留到结束后复盘。</p></article>
-      <article><strong>追问来自你的声明</strong><p>不仅问 Redis、MySQL 原理，还会追问指标怎么测、你负责什么、方案为什么这样选。</p></article>
-      <article><strong>为语音面试预留</strong><p>当前先做好文字消息与轮次模型，未来语音转写继续走同一套面试内核。</p></article>
+
+    <section class="deep-dive-workflow" aria-labelledby="workflow-title">
+      <div class="section-title"><p class="page-kicker">WORKFLOW</p><h2 id="workflow-title">一次完整的项目面试</h2></div>
+      <ol>
+        <li v-for="(item, index) in flow" :key="item.title">
+          <span>0{{ index + 1 }}</span><div><strong>{{ item.title }}</strong><p>{{ item.description }}</p></div>
+        </li>
+      </ol>
+    </section>
+
+    <section class="project-rules">
+      <div><View /><span><strong>面试过程不展示评分</strong><small>避免提示答案，也不打断表达。</small></span></div>
+      <div><Aim /><span><strong>每次追问都有项目依据</strong><small>围绕职责、指标、原理与取舍验证。</small></span></div>
+      <div><Microphone /><span><strong>语音能力已预留</strong><small>后续接入转写，不改变面试内核。</small></span></div>
     </section>
   </main>
 </template>
@@ -25,13 +33,14 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { RouterLink } from 'vue-router'
+import { Aim, ArrowRight, Briefcase, Microphone, View } from '@element-plus/icons-vue'
 import { readProjectDraft } from '@/features/project-deep-dive/composables/useProjectDraft'
 
 const hasDraft = computed(() => Boolean(readProjectDraft().trim()))
 const flow = [
-  { title: '输入项目', description: '粘贴项目经历，敏感信息先脱敏。' },
-  { title: '确认提取', description: '修正技术栈、职责、指标和声明。' },
-  { title: '沉浸面试', description: '连续回答，不在过程中查看评分。' },
-  { title: '证据复盘', description: '结束后按维度、声明和轮次复盘。' },
+  { title: '输入项目', description: '粘贴项目经历，先移除公司与个人敏感信息。' },
+  { title: '确认事实', description: '修正技术栈、个人职责、指标和待验证声明。' },
+  { title: '连续追问', description: '像真实面试一样回答，不在过程中查看评分。' },
+  { title: '证据复盘', description: '结束后按能力维度、项目声明和回答轮次复盘。' },
 ]
 </script>
