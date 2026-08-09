@@ -5,6 +5,29 @@
       <p>八股用来快速校准知识，项目深挖用来练清楚真实经历。两种训练，各自保持合适的重量。</p>
     </header>
 
+    <section v-if="dashboard?.primary" class="agent-recommendation" aria-label="个性化训练推荐">
+      <div class="agent-recommendation__copy">
+        <p class="page-kicker">PERSONAL TRAINING AGENT</p>
+        <h2>今天最值得练：{{ dashboard.primary.title }}</h2>
+        <span>{{ dashboard.primary.reason }}</span>
+        <small>预计 {{ dashboard.primary.estimatedMinutes }} 分钟 · 根据最近训练证据生成</small>
+        <div v-if="dashboard.focus.length" class="agent-focus">
+          <span>当前重点</span>
+          <em v-for="item in dashboard.focus" :key="item.dimensionCode">{{ item.label }}</em>
+        </div>
+      </div>
+      <RouterLink class="primary-link" :to="primaryPath">开始训练 <ArrowRight /></RouterLink>
+    </section>
+    <section v-else-if="dashboard?.state === 'COLD_START'" class="agent-recommendation agent-recommendation--cold" aria-label="开始训练提示">
+      <div class="agent-recommendation__copy">
+        <p class="page-kicker">PERSONAL TRAINING AGENT</p>
+        <h2>先做一次基础校准</h2>
+        <span>完成第一轮训练后，系统会根据你的真实表现安排下一步。</span>
+      </div>
+      <RouterLink class="primary-link" to="/practice/knowledge">开始校准 <ArrowRight /></RouterLink>
+    </section>
+    <p v-if="dashboard?.degraded" class="agent-degraded">个性化推荐暂时不可用，四个训练模块仍可正常使用。</p>
+
     <section class="training-entry-list" aria-label="训练模块">
       <RouterLink class="training-entry" to="/practice/knowledge">
         <span class="training-entry__icon training-entry__icon--knowledge"><Collection /></span>
@@ -49,6 +72,25 @@
 </template>
 
 <script setup lang="ts">
+import { computed, onMounted, ref } from 'vue'
 import { RouterLink } from 'vue-router'
 import { ArrowRight, Briefcase, Collection, DataAnalysis, VideoCamera } from '@element-plus/icons-vue'
+import { getTrainingAgentDashboard, type TrainingAgentDashboard } from '@/features/training-agent/api/trainingAgentApi'
+
+const dashboard = ref<TrainingAgentDashboard | null>(null)
+const primaryPath = computed(() => {
+  const type = dashboard.value?.primary?.trainingType
+  if (type === 'PROJECT_DEEP_DIVE') return '/project-deep-dive'
+  if (type === 'ALGORITHM') return '/practice/algorithm'
+  if (type === 'COMPREHENSIVE_SIMULATION') return '/simulation/new'
+  return '/practice/knowledge'
+})
+
+onMounted(async () => {
+  try {
+    dashboard.value = (await getTrainingAgentDashboard()).data.data
+  } catch {
+    // 首页不因推荐服务故障而阻塞四个训练入口。
+  }
+})
 </script>
