@@ -14,7 +14,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.dao.DataAccessException;
 import org.springframework.stereotype.Service;
 
 import java.time.Clock;
@@ -64,7 +63,7 @@ public class TrainingAgentDashboardService {
             TrainingRecommendation recommendation = policy.recommend(snapshots, evidence, now);
             persistRecommendation(userId, recommendation, now);
             return toResponse(recommendation, snapshots, now, false);
-        } catch (DataAccessException | IllegalStateException ex) {
+        } catch (RuntimeException ex) {
             log.warn("training agent dashboard degraded for user {}", userId, ex);
             return degraded(now);
         }
