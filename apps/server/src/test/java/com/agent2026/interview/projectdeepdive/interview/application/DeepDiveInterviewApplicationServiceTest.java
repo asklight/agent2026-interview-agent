@@ -191,7 +191,8 @@ class DeepDiveInterviewApplicationServiceTest {
         when(interviews.findByClientTurnId(8L, "client-1"))
                 .thenReturn(Optional.of(retryable), Optional.of(processing), Optional.of(processing));
         when(interviews.claimRetry(eq(20L), any())).thenReturn(true);
-        when(retrieval.retrieve(anyString())).thenReturn(new RetrievalContext(List.of(), false));
+        when(retrieval.retrieve(anyString())).thenReturn(
+                new RetrievalContext(List.of("Java thread pool knowledge"), true));
         when(evaluator.evaluate(any())).thenReturn(new TurnEvaluationResult(Map.of("ownership", 70), List.of(),
                 List.of(), List.of(), List.of(), List.of(), "WRAP_UP", "最后总结一下", "hash", false));
         when(interviews.complete(anyLong(), anyLong(), any(), any(), any(), anyString(), any(), anyString(), anyBoolean()))
@@ -204,9 +205,11 @@ class DeepDiveInterviewApplicationServiceTest {
         ArgumentCaptor<TurnEvaluationContext> context = ArgumentCaptor.forClass(TurnEvaluationContext.class);
         verify(evaluator).evaluate(context.capture());
         org.assertj.core.api.Assertions.assertThat(context.getValue().candidateAnswer()).isEqualTo("首次回答");
+        assertThat(context.getValue().retrievedKnowledge())
+                .containsExactly("Java thread pool knowledge");
         verify(retrieval).retrieve(contains("首次回答"));
         verify(interviews).complete(eq(8L), eq(20L), eq(processing.processingStartedAt()), any(), any(),
-                anyString(), any(), anyString(), anyBoolean());
+                anyString(), any(), anyString(), eq(true));
     }
 
     @Test void differentClientTurnCannotBypassUnresolvedProcessingTurn() {
