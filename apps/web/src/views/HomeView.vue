@@ -5,6 +5,11 @@
       <p>八股用来快速校准知识，项目深挖用来练清楚真实经历。两种训练，各自保持合适的重量。</p>
     </header>
 
+    <div v-if="dashboardNotice" class="agent-sync-status" :class="`agent-sync-status--${refreshState}`" role="status" aria-live="polite">
+      <span>{{ dashboardNotice }}</span>
+      <button v-if="refreshState === 'failed'" type="button" @click="retryDashboard">重新获取建议</button>
+    </div>
+
     <section v-if="showRecommendation && primaryRecommendation" class="agent-recommendation" aria-label="个性化训练推荐">
       <div class="agent-recommendation__copy">
         <p class="page-kicker">PERSONAL TRAINING AGENT</p>
@@ -22,9 +27,6 @@
       </div>
       <RouterLink class="primary-link" :to="coldStartTarget">设置校准训练 <ArrowRight /></RouterLink>
     </section>
-    <p v-if="agentState === 'DEGRADED' || agentState === 'FAILED'" class="agent-degraded" role="status">
-      {{ degradedMessage }}
-    </p>
 
     <section v-if="showOverview" class="agent-overview" aria-label="训练概览">
       <div class="agent-overview__section">
@@ -102,15 +104,21 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
-import { RouterLink } from 'vue-router'
+import { computed, onMounted } from 'vue'
+import { RouterLink, useRoute, useRouter } from 'vue-router'
 import { ArrowRight, Briefcase, Collection, DataAnalysis, VideoCamera } from '@element-plus/icons-vue'
-import { getTrainingAgentDashboard, type TrainingAgentDashboard } from '@/features/training-agent/api/trainingAgentApi'
+import { useTrainingAgentDashboard } from '@/features/training-agent/composables/useTrainingAgentDashboard'
 import { coldStartTarget, recommendationTarget } from '@/features/training-agent/model/recommendationNavigation'
 
-const dashboard = ref<TrainingAgentDashboard | null>(null)
-const dashboardLoading = ref(true)
-const requestFailed = ref(false)
+const route = useRoute()
+const router = useRouter()
+const refreshAfterCompletedTraining = route.query.trainingCompleted === '1'
+const { dashboard, loading: dashboardLoading, requestFailed, refreshState, load } = useTrainingAgentDashboard()
+
+if (refreshAfterCompletedTraining) {
+  const { trainingCompleted: _trainingCompleted, ...query } = route.query
+  void router.replace({ query })
+}
 
 const agentState = computed(() => {
   if (dashboardLoading.value) return 'LOADING'
@@ -132,10 +140,19 @@ const alternativeRecommendations = computed(() => {
     .filter(item => item.trainingType !== primaryType)
     .slice(0, 2)
 })
-const degradedMessage = computed(() => {
-  if (requestFailed.value) return '个性化推荐暂时没有连接上，四个训练模块仍可正常使用。'
-  if (primaryRecommendation.value) return '推荐同步暂时延迟，当前展示最近一次可用建议。'
-  return '个性化推荐暂时不可用，四个训练模块仍可正常使用。'
+const dashboardNotice = computed(() => {
+  if (refreshState.value === 'refreshing') return '正在整理本次训练结果，新的训练建议会自动更新。'
+  if (refreshState.value === 'failed') {
+    return dashboard.value
+      ? '本次训练结果暂时没有同步完成，当前保留上一次建议。'
+      : '个性化推荐暂时没有连接上，四个训练模块仍可正常使用。'
+  }
+  if (agentState.value === 'DEGRADED') {
+    return primaryRecommendation.value
+      ? '推荐同步暂时延迟，当前展示最近一次可用建议。'
+      : '个性化推荐暂时不可用，四个训练模块仍可正常使用。'
+  }
+  return ''
 })
 
 function abilityStateLabel(state: string) {
@@ -156,13 +173,11 @@ function progressMessage(label: string, state: string) {
   return `“${label}”已经获得新的训练记录。`
 }
 
-onMounted(async () => {
-  try {
-    dashboard.value = (await getTrainingAgentDashboard()).data.data
-  } catch {
-    requestFailed.value = true
-  } finally {
-    dashboardLoading.value = false
-  }
+function retryDashboard() {
+  void load({ refresh: refreshAfterCompletedTraining })
+}
+
+onMounted(() => {
+  void load({ refresh: refreshAfterCompletedTraining })
 })
 </script>

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { TrainingRecommendationItem } from '../api/trainingAgentApi'
-import { recommendationTarget } from '../model/recommendationNavigation'
+import { completedTrainingTarget, recommendationTarget } from '../model/recommendationNavigation'
 
 function recommendation(trainingType: string, action: Record<string, unknown>, dimensionCode = 'GENERAL.ANSWER_STRUCTURE'):
   TrainingRecommendationItem {
@@ -17,6 +17,13 @@ function recommendation(trainingType: string, action: Record<string, unknown>, d
 }
 
 describe('recommendationTarget', () => {
+  it('uses one standard home target after any completed training', () => {
+    expect(completedTrainingTarget).toEqual({
+      name: 'home',
+      query: { trainingCompleted: '1' },
+    })
+  })
+
   it('maps knowledge presets without starting a session', () => {
     expect(recommendationTarget(recommendation('KNOWLEDGE', {
       module: 'JAVA', difficulty: 'mixed', questionCount: 3,

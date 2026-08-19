@@ -1,6 +1,6 @@
 <template>
   <main class="simulation-report-page">
-    <header class="simulation-report-header"><RouterLink to="/history">← 返回训练历史</RouterLink><div><p class="page-kicker">INTERVIEW REVIEW</p><h1>综合模拟复盘</h1><p>{{ report?.completionStatus === 'COMPLETE' ? '三个阶段均已完成，下面的结论都来自本场真实回答。' : '本场提前结束，只复盘已经完成的部分；未覆盖内容不计为失分。' }}</p></div><RouterLink class="primary-link" to="/simulation/new">再模拟一场</RouterLink></header>
+    <header class="simulation-report-header"><RouterLink to="/history">← 返回训练历史</RouterLink><div><p class="page-kicker">INTERVIEW REVIEW</p><h1>综合模拟复盘</h1><p>{{ report?.completionStatus === 'COMPLETE' ? '三个阶段均已完成，下面的结论都来自本场真实回答。' : '本场提前结束，只复盘已经完成的部分；未覆盖内容不计为失分。' }}</p></div><RouterLink v-if="report" class="primary-link next-training-link" :to="completedTrainingTarget">查看下一步训练</RouterLink></header>
     <section v-if="loading" class="simulation-options-state">正在整理本场证据...</section>
     <section v-else-if="error" class="simulation-options-state"><p>{{ error }}</p><el-button @click="load">重新加载</el-button></section>
     <template v-else-if="report">
@@ -32,6 +32,7 @@ import { computed, onMounted, ref } from 'vue'
 import { RouterLink } from 'vue-router'
 import { getSimulationReport } from '../api/simulationApi'
 import type { SimulationReport, SimulationStageReport } from '../model/types'
+import { completedTrainingTarget } from '@/features/training-agent/model/recommendationNavigation'
 const props = defineProps<{ sessionId: string }>(); const id = Number(props.sessionId)
 const report = ref<SimulationReport | null>(null); const loading = ref(false); const error = ref('')
 const completedCount = computed(() => report.value?.stages.filter(stage => stage.report).length ?? 0)

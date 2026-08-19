@@ -54,7 +54,10 @@
           <article class="report-card warning"><h3><Warning :size="18" />需要补强</h3><ul><li v-for="item in report.weaknesses" :key="item">{{ item }}</li></ul></article>
           <article class="report-card action"><h3><Compass :size="18" />下一轮建议</h3><ul><li v-for="item in report.recommendations" :key="item">{{ item }}</li></ul></article>
         </div>
-        <el-button type="primary" class="restart-button" :loading="sessionLoading" @click="startSession"><RefreshRight :size="17" />再练一轮</el-button>
+        <div class="answer-actions">
+          <el-button class="restart-button" :loading="sessionLoading" @click="startSession"><RefreshRight :size="17" />再练一轮</el-button>
+          <RouterLink class="primary-link next-training-link" :to="completedTrainingTarget">查看下一步训练<ArrowRight :size="16" /></RouterLink>
+        </div>
       </section>
 
       <section v-else-if="activeQuestion || evaluationText" class="interview-workspace">
@@ -113,11 +116,12 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
 import { ElMessage } from 'element-plus'
-import { useRoute } from 'vue-router'
+import { RouterLink, useRoute } from 'vue-router'
 import { ArrowRight, Check, CircleCheck, Collection, Compass, Connection, RefreshRight, VideoPlay, Warning } from '@element-plus/icons-vue'
 import { getHealth } from '@/api/modules/health'
 import { getQuestionModules } from '@/api/modules/questionCard'
 import { createInterviewSession, finishInterviewSession, getInterviewReport, nextInterviewQuestion, submitInterviewAnswer, type CurrentQuestion, type InterviewReport, type InterviewSession, type SubmitAnswerResult } from '@/api/modules/interview'
+import { completedTrainingTarget } from '@/features/training-agent/model/recommendationNavigation'
 
 const route = useRoute()
 const requestedModule = queryValue(route.query.module)

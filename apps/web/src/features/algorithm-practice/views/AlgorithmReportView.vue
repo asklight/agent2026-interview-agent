@@ -2,7 +2,10 @@
   <main class="page-frame algorithm-report-page">
     <header class="workspace-heading">
       <div><p class="page-kicker">ALGORITHM REVIEW</p><h1>算法口述复盘</h1></div>
-      <RouterLink class="secondary-link" to="/practice/algorithm">继续选题</RouterLink>
+      <div class="answer-actions">
+        <RouterLink class="secondary-link" to="/practice/algorithm">继续选题</RouterLink>
+        <RouterLink v-if="report" class="primary-link next-training-link" :to="completedTrainingTarget">查看下一步训练</RouterLink>
+      </div>
     </header>
     <section v-if="loading" class="algorithm-library__state">正在生成复盘...</section>
     <section v-else-if="error" class="algorithm-library__state"><p>{{ error }}</p><el-button @click="load">重新加载</el-button></section>
@@ -47,6 +50,7 @@ import { computed, onMounted, ref } from 'vue'
 import { RouterLink } from 'vue-router'
 import { getAlgorithmReport } from '../api/algorithmApi'
 import type { AlgorithmReport } from '../model/types'
+import { completedTrainingTarget } from '@/features/training-agent/model/recommendationNavigation'
 
 const props = defineProps<{ sessionId: string }>()
 const report = ref<AlgorithmReport | null>(null)

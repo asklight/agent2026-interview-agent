@@ -1,11 +1,25 @@
 import { flushPromises, mount, RouterLinkStub } from '@vue/test-utils'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import HomeView from '../HomeView.vue'
 import { getTrainingAgentDashboard, type TrainingAgentDashboard, type TrainingRecommendationItem } from '@/features/training-agent/api/trainingAgentApi'
 
 vi.mock('@/features/training-agent/api/trainingAgentApi', () => ({
   getTrainingAgentDashboard: vi.fn(),
 }))
+
+const routerMock = vi.hoisted(() => ({
+  query: {} as Record<string, string | string[] | null | undefined>,
+  replace: vi.fn(),
+}))
+
+vi.mock('vue-router', async () => {
+  const actual = await vi.importActual<typeof import('vue-router')>('vue-router')
+  return {
+    ...actual,
+    useRoute: () => ({ query: routerMock.query }),
+    useRouter: () => ({ replace: routerMock.replace }),
+  }
+})
 
 function response(data: TrainingAgentDashboard) { return { data: { data } } as never }
 
@@ -50,7 +64,55 @@ function primaryLink(wrapper: ReturnType<typeof mountHome>) {
 }
 
 describe('HomeView training agent dashboard', () => {
-  beforeEach(() => vi.resetAllMocks())
+  beforeEach(() => {
+    vi.resetAllMocks()
+    routerMock.query = {}
+  })
+
+  afterEach(() => {
+    vi.clearAllTimers()
+    vi.useRealTimers()
+  })
+
+  it('consumes the completed-training query once and refreshes until a new recommendation arrives', async () => {
+    vi.useFakeTimers()
+    routerMock.query = { trainingCompleted: '1', source: 'report' }
+    vi.mocked(getTrainingAgentDashboard)
+      .mockResolvedValueOnce(response(dashboard()))
+      .mockResolvedValueOnce(response(dashboard({
+        generatedAt: '2026-08-19T10:00:01',
+        primaryRecommendation: item('ALGORITHM', '边界条件专项', 'ALGORITHM.EDGE_CASE'),
+      })))
+
+    const wrapper = mountHome()
+
+    expect(routerMock.replace).toHaveBeenCalledWith({ query: { source: 'report' } })
+    await Promise.resolve()
+    await Promise.resolve()
+    expect(wrapper.text()).toContain('正在整理本次训练结果')
+    expect(getTrainingAgentDashboard).toHaveBeenCalledTimes(1)
+
+    await vi.advanceTimersByTimeAsync(600)
+    await Promise.resolve()
+
+    expect(getTrainingAgentDashboard).toHaveBeenCalledTimes(2)
+    expect(wrapper.text()).toContain('今天最值得练：边界条件专项')
+    expect(wrapper.text()).not.toContain('正在整理本次训练结果')
+    expect(wrapper.findAll('.training-entry')).toHaveLength(4)
+    wrapper.unmount()
+  })
+
+  it('only treats the exact string query value as a completed training marker', async () => {
+    routerMock.query = { trainingCompleted: ['1'] }
+    vi.mocked(getTrainingAgentDashboard).mockResolvedValue(response(dashboard()))
+
+    const wrapper = mountHome()
+    await flushPromises()
+
+    expect(routerMock.replace).not.toHaveBeenCalled()
+    expect(getTrainingAgentDashboard).toHaveBeenCalledTimes(1)
+    wrapper.unmount()
+  })
 
   it('shows cold start separately and carries the calibration preset', async () => {
     vi.mocked(getTrainingAgentDashboard).mockResolvedValue(response(dashboard({
@@ -105,8 +167,24 @@ describe('HomeView training agent dashboard', () => {
     await flushPromises()
 
     expect(wrapper.text()).toContain('个性化推荐暂时没有连接上')
+    expect(wrapper.get('.agent-sync-status button').text()).toBe('重新获取建议')
     expect(wrapper.findAll('.training-entry')).toHaveLength(4)
     expect(wrapper.find('.agent-recommendation').exists()).toBe(false)
+  })
+
+  it('lets the user retry a failed dashboard request', async () => {
+    vi.mocked(getTrainingAgentDashboard)
+      .mockRejectedValueOnce(new Error('network unavailable'))
+      .mockResolvedValueOnce(response(dashboard()))
+    const wrapper = mountHome()
+    await flushPromises()
+
+    await wrapper.get('.agent-sync-status button').trigger('click')
+    await flushPromises()
+
+    expect(getTrainingAgentDashboard).toHaveBeenCalledTimes(2)
+    expect(wrapper.text()).toContain('今天最值得练：复杂度专项')
+    expect(wrapper.find('.agent-sync-status').exists()).toBe(false)
   })
 
   it('uses the last available recommendation in degraded state', async () => {

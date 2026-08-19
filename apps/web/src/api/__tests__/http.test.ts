@@ -1,4 +1,5 @@
 import { AxiosError } from 'axios'
+import { ElMessage } from 'element-plus'
 import { describe, expect, it, vi } from 'vitest'
 import http, { isApiBusinessError } from '@/api/http'
 
@@ -34,5 +35,16 @@ describe('HTTP business error classification', () => {
 
     await expect(request).rejects.toBe(transportError)
     expect(isApiBusinessError(transportError)).toBe(false)
+  })
+
+  it('does not show an error toast when a request is deliberately canceled', async () => {
+    vi.mocked(ElMessage.error).mockClear()
+    const canceled = new AxiosError('canceled', 'ERR_CANCELED')
+    const request = http.get('/test-canceled-request', {
+      adapter: async () => Promise.reject(canceled),
+    })
+
+    await expect(request).rejects.toBe(canceled)
+    expect(ElMessage.error).not.toHaveBeenCalled()
   })
 })

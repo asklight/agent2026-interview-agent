@@ -91,3 +91,8 @@ export const coldStartTarget: RouteLocationRaw = {
   name: 'knowledge-practice',
   query: { module: 'Java', difficulty: 'mixed', questionCount: '3' },
 }
+
+export const completedTrainingTarget: RouteLocationRaw = {
+  name: 'home',
+  query: { trainingCompleted: '1' },
+}

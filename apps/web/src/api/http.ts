@@ -64,6 +64,8 @@ http.interceptors.response.use(
     return response
   },
   async (error: AxiosError<ApiResponse>) => {
+    if (axios.isCancel(error) || error.code === 'ERR_CANCELED') return Promise.reject(error)
+
     const request = error.config as (typeof error.config & { _authRetried?: boolean })
     const isAuthEndpoint = request?.url?.startsWith('/auth/')
     if (error.response?.status === 401 && request && !request._authRetried && !isAuthEndpoint && refreshAccessToken) {

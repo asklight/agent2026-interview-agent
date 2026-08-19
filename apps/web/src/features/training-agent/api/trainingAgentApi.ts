@@ -42,6 +42,6 @@ export interface TrainingAgentDashboard {
   generatedAt: string | null
 }
 
-export function getTrainingAgentDashboard() {
-  return http.get<ApiResponse<TrainingAgentDashboard>>('/training-agent/dashboard')
+export function getTrainingAgentDashboard(signal?: AbortSignal) {
+  return http.get<ApiResponse<TrainingAgentDashboard>>('/training-agent/dashboard', { signal })
 }

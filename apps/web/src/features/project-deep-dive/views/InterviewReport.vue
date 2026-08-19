@@ -2,7 +2,10 @@
   <main class="project-report-page page-frame">
     <header class="workspace-heading report-page-heading">
       <div><RouterLink class="back-link" to="/">← 返回首页</RouterLink><p class="page-kicker">PROJECT INTERVIEW REVIEW</p><h1>项目面试复盘</h1></div>
-      <RouterLink class="secondary-link" to="/project-deep-dive">再练一个项目</RouterLink>
+      <div class="answer-actions">
+        <RouterLink class="secondary-link" to="/project-deep-dive">再练一个项目</RouterLink>
+        <RouterLink v-if="report" class="primary-link next-training-link" :to="completedTrainingTarget">查看下一步训练</RouterLink>
+      </div>
     </header>
 
     <section v-if="!accessToken" class="access-lost-state"><h2>无法读取这份报告</h2><p>当前浏览器会话中没有资源访问令牌。</p></section>
@@ -42,6 +45,7 @@ import TurnReview from '@/features/project-deep-dive/components/TurnReview.vue'
 import { getProjectInterviewReport } from '@/features/project-deep-dive/api/interviewApi'
 import type { ProjectInterviewReport, ReportConclusion, ReportDimension } from '@/features/project-deep-dive/model/types'
 import { useInterviewSessionStore } from '@/features/project-deep-dive/stores/interviewSession'
+import { completedTrainingTarget } from '@/features/training-agent/model/recommendationNavigation'
 
 const props = defineProps<{ sessionId: string }>()
 const sessionId = Number(props.sessionId)
