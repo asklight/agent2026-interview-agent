@@ -113,13 +113,16 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
 import { ElMessage } from 'element-plus'
+import { useRoute } from 'vue-router'
 import { ArrowRight, Check, CircleCheck, Collection, Compass, Connection, RefreshRight, VideoPlay, Warning } from '@element-plus/icons-vue'
 import { getHealth } from '@/api/modules/health'
 import { getQuestionModules } from '@/api/modules/questionCard'
 import { createInterviewSession, finishInterviewSession, getInterviewReport, nextInterviewQuestion, submitInterviewAnswer, type CurrentQuestion, type InterviewReport, type InterviewSession, type SubmitAnswerResult } from '@/api/modules/interview'
 
+const route = useRoute()
+const requestedModule = queryValue(route.query.module)
 const loading = ref(false); const moduleLoading = ref(false); const sessionLoading = ref(false); const submitLoading = ref(false); const nextLoading = ref(false)
-const healthMessage = ref(''); const healthy = ref(false); const questionModules = ref<string[]>([]); const selectedModule = ref(''); const selectedDifficulty = ref(''); const questionCount = ref(5)
+const healthMessage = ref(''); const healthy = ref(false); const questionModules = ref<string[]>([]); const selectedModule = ref(''); const selectedDifficulty = ref(initialDifficulty(route.query.difficulty)); const questionCount = ref(initialQuestionCount(route.query.questionCount))
 const session = ref<InterviewSession | null>(null); const activeQuestion = ref<CurrentQuestion | null>(null); const report = ref<InterviewReport | null>(null); const answerText = ref(''); const evaluationText = ref(''); const nextAction = ref<SubmitAnswerResult['nextAction'] | ''>(''); const feedbackScore = ref<number | null>(null); const hitPoints = ref<string[]>([]); const missingPoints = ref<string[]>([]); const weaknesses = ref<string[]>([])
 const mobileFeedbackOpen = ref(false)
 const moduleNames: Record<string, string> = { Java: 'Java 核心', MySQL: 'MySQL', Redis: 'Redis', Spring: 'Spring', Network: '计算机网络', OperatingSystem: '操作系统' }
@@ -129,8 +132,31 @@ const canSubmit = computed(() => Boolean(session.value && session.value.status !
 const canGoNext = computed(() => nextAction.value === 'NEXT_QUESTION' && session.value?.status !== 'FINISHED')
 const nextActionText = computed(() => nextAction.value === 'ASK_FOLLOW_UP' ? 'AI 已发起追问' : nextAction.value === 'NEXT_QUESTION' ? '本题完成，可以继续' : nextAction.value === 'FINISH_SESSION' ? '训练结束，正在生成报告' : '')
 
+function queryValue(value: unknown) {
+  const scalar = Array.isArray(value) ? value[0] : value
+  return typeof scalar === 'string' ? scalar.trim() : ''
+}
+
+function initialDifficulty(value: unknown) {
+  const difficulty = queryValue(value).toLowerCase()
+  return ['easy', 'medium', 'hard'].includes(difficulty) ? difficulty : ''
+}
+
+function initialQuestionCount(value: unknown) {
+  const count = Number(queryValue(value))
+  return Number.isInteger(count) && count >= 3 && count <= 10 ? count : 5
+}
+
+function normalizedModule(value: string) {
+  const aliases: Record<string, string> = {
+    java: 'Java', mysql: 'MySQL', redis: 'Redis', spring: 'Spring', network: 'Network',
+    os: 'OperatingSystem', operating_system: 'OperatingSystem', operatingsystem: 'OperatingSystem',
+  }
+  return aliases[value.replace(/\./g, '_').toLowerCase()] ?? value
+}
+
 async function checkHealth() { loading.value = true; try { const response = await getHealth(); healthy.value = true; healthMessage.value = response.data.data || '服务运行正常' } catch { healthy.value = false; healthMessage.value = '训练服务暂不可用' } finally { loading.value = false } }
-async function loadModules() { moduleLoading.value = true; try { const response = await getQuestionModules(); questionModules.value = response.data.data; if (!selectedModule.value) selectedModule.value = questionModules.value[0] || '' } finally { moduleLoading.value = false } }
+async function loadModules() { moduleLoading.value = true; try { const response = await getQuestionModules(); questionModules.value = response.data.data; const preset = normalizedModule(requestedModule); const matched = questionModules.value.find(module => module.toLowerCase() === preset.toLowerCase()); selectedModule.value = matched || questionModules.value[0] || '' } finally { moduleLoading.value = false } }
 function clearFeedback() { evaluationText.value = ''; nextAction.value = ''; feedbackScore.value = null; hitPoints.value = []; missingPoints.value = []; weaknesses.value = []; mobileFeedbackOpen.value = false }
 function applySession(value: InterviewSession) { session.value = value; activeQuestion.value = value.currentQuestion ?? null }
 async function startSession() { if (!selectedModule.value) return; sessionLoading.value = true; try { const response = await createInterviewSession({ module: selectedModule.value, difficulty: selectedDifficulty.value || undefined, questionCount: questionCount.value }); applySession(response.data.data); report.value = null; answerText.value = ''; clearFeedback() } finally { sessionLoading.value = false } }

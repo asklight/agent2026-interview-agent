@@ -36,12 +36,13 @@ const router = createRouter({
           path: 'project-deep-dive/new',
           name: 'project-deep-dive-new',
           component: () => import('@/features/project-deep-dive/views/ProjectSetup.vue'),
+          props: route => ({ targetDimension: route.query.targetDimension }),
         },
         {
           path: 'project-deep-dive/:profileId(\\d+)',
           name: 'project-deep-dive-profile',
           component: () => import('@/features/project-deep-dive/views/ProjectSetup.vue'),
-          props: true,
+          props: route => ({ profileId: route.params.profileId, targetDimension: route.query.targetDimension }),
         },
         {
           path: 'practice/knowledge',

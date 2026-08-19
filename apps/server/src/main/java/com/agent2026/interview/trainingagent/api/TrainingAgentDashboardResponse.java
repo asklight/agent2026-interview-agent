@@ -8,23 +8,27 @@ public record TrainingAgentDashboardResponse(
         boolean enabled,
         boolean degraded,
         String state,
-        RecommendationItem primary,
+        List<AbilityFocus> focusDimensions,
+        RecommendationItem primaryRecommendation,
         List<RecommendationItem> alternatives,
-        List<AbilityFocus> focus,
+        RecentProgress recentProgress,
         LocalDateTime generatedAt) {
     public TrainingAgentDashboardResponse {
+        focusDimensions = focusDimensions == null ? List.of() : List.copyOf(focusDimensions);
         alternatives = alternatives == null ? List.of() : List.copyOf(alternatives);
-        focus = focus == null ? List.of() : List.copyOf(focus);
     }
 
-    public record RecommendationItem(String trainingType, String dimensionCode, String title, String reason,
-                                     int estimatedMinutes, Map<String, Object> action, List<Long> evidenceIds) {
+    public record RecommendationItem(long revision, String trainingType, String dimensionCode, String title,
+                                     String reason, int estimatedMinutes, Map<String, Object> action,
+                                     int evidenceCount) {
         public RecommendationItem {
             action = action == null ? Map.of() : Map.copyOf(action);
-            evidenceIds = evidenceIds == null ? List.of() : List.copyOf(evidenceIds);
         }
     }
 
-    public record AbilityFocus(String dimensionCode, String label, String sourceType, String state,
-                               double confidence, int gapCount, int riskCount, LocalDateTime lastObservedAt) {}
+    public record AbilityFocus(String dimensionCode, String label, String sourceType, String abilityState,
+                               int evidenceCount, LocalDateTime lastObservedAt) {}
+
+    public record RecentProgress(String dimensionCode, String label, String sourceType, String abilityState,
+                                 LocalDateTime lastObservedAt) {}
 }

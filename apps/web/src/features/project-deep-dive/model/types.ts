@@ -112,6 +112,7 @@ export interface CreateProjectInterviewPayload {
   durationMinutes: number
   maxFollowUpsPerClaim: number
   inputModality: InputModality
+  targetDimension?: string
 }
 
 export interface SubmitProjectTurnPayload {

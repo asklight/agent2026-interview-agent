@@ -52,6 +52,9 @@
             <p class="page-kicker">STEP 03 · INTERVIEW SETTINGS</p>
             <h2>{{ profile.analysisStatus === 'READY' ? '项目档案已确认，可以开始面试' : '确认这些信息，并进入面试' }}</h2>
             <p>默认 20 分钟、每个核心声明最多追问 3 次。第一版使用文字输入。</p>
+            <el-tag v-if="targetDimensionLabel" type="primary" effect="plain">
+              本次优先：{{ targetDimensionLabel }}
+            </el-tag>
           </div>
           <el-collapse class="advanced-settings">
             <el-collapse-item title="高级设置" name="advanced">
@@ -91,7 +94,7 @@ import { createProjectInterview } from '@/features/project-deep-dive/api/intervi
 import type { InputModality, ProjectProfile, ProjectReviewForm } from '@/features/project-deep-dive/model/types'
 import { useInterviewSessionStore } from '@/features/project-deep-dive/stores/interviewSession'
 
-const props = defineProps<{ profileId?: string }>()
+const props = defineProps<{ profileId?: string; targetDimension?: string | string[] }>()
 const router = useRouter()
 const store = useInterviewSessionStore()
 const { draft, clearDraft } = useProjectDraft()
@@ -117,6 +120,18 @@ let analysisPollTimer: number | undefined
 let disposed = false
 
 const numericProfileId = computed(() => props.profileId ? Number(props.profileId) : null)
+const targetDimension = computed(() => {
+  const raw = Array.isArray(props.targetDimension) ? props.targetDimension[0] : props.targetDimension
+  const code = raw?.trim().toUpperCase()
+  return code && ['PROJECT.OWNERSHIP', 'PROJECT.AUTHENTICITY', 'PROJECT.PRINCIPLE', 'PROJECT.TRADEOFF'].includes(code)
+    ? code : undefined
+})
+const targetDimensionLabel = computed(() => ({
+  'PROJECT.OWNERSHIP': '个人贡献',
+  'PROJECT.AUTHENTICITY': '真实性',
+  'PROJECT.PRINCIPLE': '技术原理',
+  'PROJECT.TRADEOFF': '方案取舍',
+}[targetDimension.value ?? ''] ?? ''))
 const reviewReadonly = computed(() => profile.value?.analysisStatus === 'READY' && !editingReady.value)
 const statusMeta = computed(() => {
   const status = profile.value?.analysisStatus
@@ -275,7 +290,11 @@ async function createAndAnalyze() {
     const created = response.data.data
     store.saveProfileAccess(created.profileId, created.accessToken)
     clearDraft()
-    await router.replace({ name: 'project-deep-dive-profile', params: { profileId: created.profileId } })
+    await router.replace({
+      name: 'project-deep-dive-profile',
+      params: { profileId: created.profileId },
+      query: targetDimension.value ? { targetDimension: targetDimension.value } : {},
+    })
     if (disposed || numericProfileId.value !== created.profileId) return
     await analyze(created.profileId, created.accessToken)
   } finally {
@@ -348,6 +367,7 @@ async function startInterview() {
       durationMinutes: settings.durationMinutes,
       maxFollowUpsPerClaim: settings.maxFollowUpsPerClaim,
       inputModality: settings.inputModality,
+      targetDimension: targetDimension.value,
     }, token)
     if (!isCurrentProfile(profileId, epoch)) return
     const session = response.data.data

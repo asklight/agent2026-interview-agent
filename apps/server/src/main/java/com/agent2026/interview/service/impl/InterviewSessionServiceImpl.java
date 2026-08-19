@@ -22,6 +22,8 @@ import com.agent2026.interview.vo.SubmitAnswerVO;
 import com.agent2026.interview.shared.error.BusinessException;
 import com.agent2026.interview.shared.error.ErrorCode;
 import org.springframework.stereotype.Service;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
@@ -50,6 +52,12 @@ public class InterviewSessionServiceImpl implements InterviewSessionService {
     private final AnswerEvaluator answerEvaluator;
     private final FollowUpDecider followUpDecider;
     private final InterviewReportService interviewReportService;
+    private ApplicationEventPublisher events;
+
+    @Autowired(required = false)
+    void setEvents(ApplicationEventPublisher events) {
+        this.events = events;
+    }
 
     public InterviewSessionServiceImpl(InterviewSessionMapper sessionMapper,
                                        InterviewAnswerMapper answerMapper,
@@ -271,6 +279,7 @@ public class InterviewSessionServiceImpl implements InterviewSessionService {
         sessionMapper.updateById(session);
         if (STATUS_FINISHED.equals(session.getStatus())) {
             interviewReportService.generateIfAbsent(session.getId());
+            publishCompleted(session);
         }
     }
 
@@ -288,6 +297,14 @@ public class InterviewSessionServiceImpl implements InterviewSessionService {
             sessionMapper.updateById(session);
         }
         interviewReportService.generateIfAbsent(session.getId());
+        publishCompleted(session);
+    }
+
+    private void publishCompleted(InterviewSession session) {
+        if (events == null || session.getUserId() == null) return;
+        events.publishEvent(new com.agent2026.interview.shared.training.TrainingCompletedEvent(
+                session.getUserId(), "KNOWLEDGE", session.getId(), 1,
+                session.getEndTime() == null ? LocalDateTime.now() : session.getEndTime()));
     }
 
     private InterviewSession requireSession(Long sessionId) {

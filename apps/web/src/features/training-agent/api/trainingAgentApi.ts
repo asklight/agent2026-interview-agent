@@ -2,34 +2,44 @@ import http from '@/api/http'
 import type { ApiResponse } from '@/api/http'
 
 export interface TrainingRecommendationItem {
+  revision: number
   trainingType: string
   dimensionCode: string
   title: string
   reason: string
   estimatedMinutes: number
   action: Record<string, unknown>
-  evidenceIds: number[]
+  evidenceCount: number
 }
 
 export interface AbilityFocus {
   dimensionCode: string
   label: string
   sourceType: string
-  state: string
-  confidence: number
-  gapCount: number
-  riskCount: number
+  abilityState: string
+  evidenceCount: number
   lastObservedAt: string | null
 }
+
+export interface RecentProgress {
+  dimensionCode: string
+  label: string
+  sourceType: string
+  abilityState: string
+  lastObservedAt: string | null
+}
+
+export type TrainingAgentDashboardState = 'COLD_START' | 'READY' | 'DISABLED' | 'DEGRADED'
 
 export interface TrainingAgentDashboard {
   enabled: boolean
   degraded: boolean
-  state: string
-  primary: TrainingRecommendationItem | null
+  state: TrainingAgentDashboardState
+  primaryRecommendation: TrainingRecommendationItem | null
   alternatives: TrainingRecommendationItem[]
-  focus: AbilityFocus[]
-  generatedAt: string
+  focusDimensions: AbilityFocus[]
+  recentProgress: RecentProgress | null
+  generatedAt: string | null
 }
 
 export function getTrainingAgentDashboard() {

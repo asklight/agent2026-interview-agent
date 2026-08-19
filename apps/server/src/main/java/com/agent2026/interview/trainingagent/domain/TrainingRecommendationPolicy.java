@@ -6,103 +6,220 @@ import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 @Component
 public class TrainingRecommendationPolicy {
-    public static final String POLICY_VERSION = "v1";
+    public static final String POLICY_VERSION = "v2";
+    private static final double CORE_DIMENSION_WEIGHT = 1.15;
+    private static final double FATIGUE_FACTOR = 0.75;
 
     public TrainingRecommendation recommend(List<AbilitySnapshot> snapshots, List<AbilityEvidence> evidence,
-                                            LocalDateTime now) {
+                                             LocalDateTime now) {
+        return recommend(snapshots, evidence, TrainingHistorySignal.none(), now);
+    }
+
+    public TrainingRecommendation recommend(List<AbilitySnapshot> snapshots, List<AbilityEvidence> evidence,
+                                             TrainingHistorySignal history, LocalDateTime now) {
         if (evidence.isEmpty()) {
-            return new TrainingRecommendation("COLD_START", new TrainingRecommendation.Item(
-                    "KNOWLEDGE", AbilityDimension.KNOWLEDGE_JAVA.code(), "Java 核心 · 3 题快速校准",
-                    "完成首次校准后，系统才能依据真实表现安排训练。", 10,
-                    action(AbilityDimension.KNOWLEDGE_JAVA, "medium", 3), List.of()), List.of());
+            return coldStart();
         }
+
         List<Candidate> candidates = snapshots.stream()
-                .filter(snapshot -> snapshot.state() != AbilityState.STRONG)
-                // 有证据后只在被观测过的维度之间做推荐，避免把“从未练过”的几十个维度当成缺口。
-                .filter(snapshot -> evidence.stream().anyMatch(item -> item.dimension() == snapshot.dimension()))
-                .map(snapshot -> candidate(snapshot, evidence, now))
-                .sorted(Comparator.comparingInt(Candidate::group).thenComparing(Comparator.comparingDouble(Candidate::score).reversed())
-                        .thenComparing(Candidate::lastObserved, Comparator.nullsLast(Comparator.reverseOrder())))
+                .map(snapshot -> candidate(snapshot, evidence, history, now))
+                .flatMap(java.util.Optional::stream)
+                .sorted(candidateComparator())
                 .toList();
 
-        Candidate primary = candidates.isEmpty() ? strongestFallback(snapshots, evidence, now) : candidates.get(0);
+        Candidate primary = candidates.isEmpty()
+                ? strongestFallback(snapshots, evidence, history, now)
+                : candidates.get(0);
+        Set<String> usedTrainingTypes = new HashSet<>();
+        usedTrainingTypes.add(primary.item().trainingType());
         List<TrainingRecommendation.Item> alternatives = new ArrayList<>();
-        for (int i = 1; i < candidates.size() && alternatives.size() < 2; i++) {
-            Candidate candidate = candidates.get(i);
-            if (!candidate.item().trainingType().equals(primary.item().trainingType())) alternatives.add(candidate.item());
+        for (Candidate candidate : candidates) {
+            String trainingType = candidate.item().trainingType();
+            if (alternatives.size() == 2) break;
+            if (usedTrainingTypes.add(trainingType)) alternatives.add(candidate.item());
         }
         return new TrainingRecommendation("READY", primary.item(), alternatives);
     }
 
-    private Candidate candidate(AbilitySnapshot snapshot, List<AbilityEvidence> evidence, LocalDateTime now) {
-        List<AbilityEvidence> related = evidence.stream().filter(item -> item.dimension() == snapshot.dimension()).toList();
-        AbilityEvidence latest = related.stream().max(Comparator.comparing(AbilityEvidence::observedAt)).orElse(null);
-        long negativeSessions = related.stream().filter(item -> item.polarity() != EvidencePolarity.STRENGTH)
+    private TrainingRecommendation coldStart() {
+        AbilityDimension dimension = AbilityDimension.KNOWLEDGE_JAVA;
+        return new TrainingRecommendation("COLD_START", new TrainingRecommendation.Item(
+                "KNOWLEDGE", dimension.code(), "Java 核心 · 3 题快速校准",
+                "完成首次校准后，系统才能依据真实表现安排训练。", 10,
+                action(dimension, "mixed", 3, null), List.of()), List.of());
+    }
+
+    private java.util.Optional<Candidate> candidate(AbilitySnapshot snapshot, List<AbilityEvidence> evidence,
+                                                     TrainingHistorySignal history, LocalDateTime now) {
+        List<AbilityEvidence> related = sortedEvidence(evidence.stream()
+                .filter(item -> item.dimension() == snapshot.dimension()).toList(), now);
+        boolean recentHighRisk = related.stream().anyMatch(item -> isRecentHighRisk(item, now));
+        long gapSessions = related.stream().filter(item -> item.polarity() == EvidencePolarity.GAP)
                 .map(AbilityEvidence::sourceSessionId).distinct().count();
-        boolean risk = related.stream().anyMatch(item -> item.polarity() == EvidencePolarity.RISK && item.severity() >= 4
-                && item.confidence() >= 0.7 && Duration.between(item.observedAt(), now).toDays() <= 30);
-        int group = risk ? 0 : negativeSessions >= 2 ? 1 : snapshot.state() == AbilityState.NEEDS_WORK ? 2
-                : snapshot.state() == AbilityState.UNKNOWN ? 3 : isStale(snapshot, now) ? 4 : 5;
-        double recurrence = 1 + Math.min(0.5, Math.max(0, negativeSessions - 1) * 0.15);
-        // 一期先保持确定性；近期连续训练的疲劳惩罚会在训练历史接入后补充。
-        double fatigue = 1.0;
-        double score = Math.max(0.2, Math.abs(snapshot.internalValue()) + snapshot.confidence()) * recurrence * fatigue;
-        return new Candidate(group, score, latest == null ? null : latest.observedAt(), item(snapshot, related, group, risk, now));
+
+        int group;
+        if (recentHighRisk) group = 0;
+        else if (gapSessions >= 2) group = 1;
+        else if (snapshot.state() == AbilityState.NEEDS_WORK) group = 2;
+        else if (snapshot.state() == AbilityState.UNKNOWN && snapshot.dimension().core()) group = 3;
+        else if (isStale(snapshot, now)) group = 4;
+        else if (snapshot.state() == AbilityState.STABLE) group = 5;
+        else return java.util.Optional.empty();
+
+        List<AbilityEvidence> supporting = supportingEvidence(related, group, now);
+        String trainingType = resolveTrainingType(snapshot.dimension(), supporting);
+        AbilityEvidence supportingEvidence = supporting.isEmpty() ? null : supporting.get(0);
+        double baseScore = supportingEvidence == null ? 1.0 : evidenceScore(supportingEvidence, now);
+        double recurrence = 1 + Math.min(0.5, 0.15 * Math.max(0, snapshot.distinctSessionCount() - 1));
+        double coreWeight = snapshot.dimension().core() ? CORE_DIMENSION_WEIGHT : 1.0;
+        double fatigue = recentHighRisk || !history.isFatigued(trainingType) ? 1.0 : FATIGUE_FACTOR;
+        double score = baseScore * recurrence * coreWeight * fatigue;
+        LocalDateTime lastObserved = supportingEvidence == null ? null : supportingEvidence.observedAt();
+        return java.util.Optional.of(new Candidate(group, score, lastObserved,
+                item(snapshot, supporting, group, recentHighRisk, trainingType, now)));
     }
 
-    private Candidate strongestFallback(List<AbilitySnapshot> snapshots, List<AbilityEvidence> evidence, LocalDateTime now) {
-        AbilitySnapshot snapshot = snapshots.stream().filter(item -> item.state() != AbilityState.UNKNOWN)
-                .max(Comparator.comparingDouble(AbilitySnapshot::internalValue)).orElse(null);
-        if (snapshot == null) snapshot = new AbilitySnapshot(AbilityDimension.KNOWLEDGE_JAVA, AbilityState.DEVELOPING,
-                0, 0, 0, 0, 0, 0, now);
-        AbilitySnapshot selected = snapshot;
-        List<AbilityEvidence> related = evidence.stream().filter(item -> item.dimension() == selected.dimension()).toList();
-        return new Candidate(5, 0, selected.lastObservedAt(), item(selected, related, 5, false, now));
+    private List<AbilityEvidence> supportingEvidence(List<AbilityEvidence> related, int group, LocalDateTime now) {
+        List<AbilityEvidence> focused = switch (group) {
+            case 0 -> related.stream().filter(item -> isRecentHighRisk(item, now)).toList();
+            case 1 -> related.stream().filter(item -> item.polarity() == EvidencePolarity.GAP).toList();
+            case 2 -> related.stream().filter(item -> item.polarity() != EvidencePolarity.STRENGTH).toList();
+            default -> related;
+        };
+        return focused.isEmpty() ? related : sortedEvidence(focused, now);
     }
 
-    private TrainingRecommendation.Item item(AbilitySnapshot snapshot, List<AbilityEvidence> related, int group, boolean risk,
-                                             LocalDateTime now) {
+    private Candidate strongestFallback(List<AbilitySnapshot> snapshots, List<AbilityEvidence> evidence,
+                                         TrainingHistorySignal history, LocalDateTime now) {
+        AbilitySnapshot snapshot = snapshots.stream()
+                .filter(item -> item.state() != AbilityState.UNKNOWN)
+                .max(Comparator.comparingDouble(AbilitySnapshot::internalValue)
+                        .thenComparing(item -> item.dimension().code(), Comparator.reverseOrder()))
+                .orElseThrow(() -> new IllegalStateException("evidence exists without an observed ability snapshot"));
+        List<AbilityEvidence> related = sortedEvidence(evidence.stream()
+                .filter(item -> item.dimension() == snapshot.dimension()).toList(), now);
+        String trainingType = resolveTrainingType(snapshot.dimension(), related);
+        double fatigue = history.isFatigued(trainingType) ? FATIGUE_FACTOR : 1.0;
+        double baseScore = related.isEmpty() ? 0 : evidenceScore(related.get(0), now);
+        return new Candidate(6, baseScore * fatigue, snapshot.lastObservedAt(),
+                item(snapshot, related, 6, false, trainingType, now));
+    }
+
+    private Comparator<Candidate> candidateComparator() {
+        return Comparator.comparingInt(Candidate::group)
+                .thenComparing(Comparator.comparingDouble(Candidate::score).reversed())
+                .thenComparing(Candidate::lastObserved, Comparator.nullsLast(Comparator.reverseOrder()))
+                .thenComparing(candidate -> candidate.item().dimensionCode());
+    }
+
+    private List<AbilityEvidence> sortedEvidence(List<AbilityEvidence> evidence, LocalDateTime now) {
+        return evidence.stream().sorted(Comparator
+                        .comparingDouble((AbilityEvidence item) -> evidenceScore(item, now)).reversed()
+                        .thenComparing(AbilityEvidence::observedAt, Comparator.reverseOrder())
+                        .thenComparing(AbilityEvidence::evidenceKey)
+                        .thenComparing(AbilityEvidence::sourceSessionId))
+                .toList();
+    }
+
+    private double evidenceScore(AbilityEvidence evidence, LocalDateTime now) {
+        return evidence.severity() * evidence.confidence() * recencyFactor(evidence.observedAt(), now);
+    }
+
+    private double recencyFactor(LocalDateTime observedAt, LocalDateTime now) {
+        long age = Math.max(0, Duration.between(observedAt, now).toDays());
+        return age <= 7 ? 1.0 : age <= 30 ? 0.85 : age <= 90 ? 0.60 : 0.35;
+    }
+
+    private boolean isRecentHighRisk(AbilityEvidence evidence, LocalDateTime now) {
+        return evidence.polarity() == EvidencePolarity.RISK
+                && evidence.severity() >= 4
+                && evidence.confidence() >= 0.7
+                && Math.max(0, Duration.between(evidence.observedAt(), now).toDays()) <= 30;
+    }
+
+    private TrainingRecommendation.Item item(AbilitySnapshot snapshot, List<AbilityEvidence> related, int group,
+                                             boolean risk, String trainingType, LocalDateTime now) {
         AbilityDimension dimension = snapshot.dimension();
-        String type = dimension.sourceType();
-        if ("GENERAL".equals(type)) {
-            type = related.stream().max(Comparator.comparing(AbilityEvidence::observedAt)).map(AbilityEvidence::sourceType).orElse("KNOWLEDGE");
-        }
+        AbilityEvidence supporting = related.isEmpty() ? null : related.get(0);
+        String summary = supporting == null || supporting.text() == null || supporting.text().isBlank()
+                ? null : supporting.text().trim();
         String reason;
-        if (snapshot.state() == AbilityState.UNKNOWN) reason = "这个能力维度还没有训练证据，先完成一次基础校准。";
-        else if (risk) reason = "最近训练出现了需要优先处理的风险信号，建议先针对这一维度复盘。";
-        else if (snapshot.distinctSessionCount() >= 2 && snapshot.gapCount() + snapshot.riskCount() > 0)
-            reason = "最近 " + snapshot.distinctSessionCount() + " 次训练都出现了“" + dimension.label() + "”的补强信号。";
-        else if (isStale(snapshot, now)) reason = "这个能力维度已经超过 90 天没有重新验证，建议做一次校准。";
-        else reason = "根据最近的训练证据，建议继续补强“" + dimension.label() + "”。";
-        String title = switch (type) {
+        if (snapshot.state() == AbilityState.UNKNOWN) {
+            reason = "“" + dimension.label() + "”还没有训练证据，建议先完成一次基础校准。";
+        } else if (risk) {
+            reason = evidenceReason(summary, "最近训练出现了“" + dimension.label() + "”的高风险信号，建议优先复盘。");
+        } else if (group == 1) {
+            reason = evidenceReason(summary, "多个不同场次反复出现“" + dimension.label() + "”的补强信号。");
+        } else if (isStale(snapshot, now)) {
+            reason = evidenceReason(summary, "“" + dimension.label() + "”已经超过 90 天没有重新验证，建议做一次校准。");
+        } else if (snapshot.state() == AbilityState.STRONG) {
+            reason = evidenceReason(summary, "“" + dimension.label() + "”表现稳定，可安排一次保持训练。");
+        } else if (snapshot.state() == AbilityState.STABLE) {
+            reason = evidenceReason(summary, "“" + dimension.label() + "”已经较稳定，建议通过保持训练定期验证。");
+        } else {
+            reason = evidenceReason(summary, "根据最近证据，建议继续补强“" + dimension.label() + "”。");
+        }
+        String title = switch (trainingType) {
             case "PROJECT_DEEP_DIVE" -> "项目深挖 · " + dimension.label();
             case "ALGORITHM" -> "算法口述 · " + dimension.label();
             case "COMPREHENSIVE_SIMULATION" -> "来一场综合模拟";
             default -> dimension.label() + " · 3 题快速校准";
         };
-        int minutes = "PROJECT_DEEP_DIVE".equals(type) ? 20 : "ALGORITHM".equals(type) ? 15 : 10;
-        return new TrainingRecommendation.Item(type, dimension.code(), title, reason, minutes,
-                action(dimension, "medium", 3), related.stream().map(AbilityEvidence::id).filter(id -> id != null).limit(3).toList());
+        int minutes = "PROJECT_DEEP_DIVE".equals(trainingType) ? 20 : "ALGORITHM".equals(trainingType) ? 15 : 10;
+        List<Long> evidenceIds = related.stream().map(AbilityEvidence::id).filter(id -> id != null).limit(3).toList();
+        return new TrainingRecommendation.Item(trainingType, dimension.code(), title, reason, minutes,
+                action(dimension, "medium", 3, supporting), evidenceIds);
     }
 
-    private Map<String, Object> action(AbilityDimension dimension, String difficulty, int questionCount) {
+    private String evidenceReason(String evidenceSummary, String conclusion) {
+        return evidenceSummary == null ? conclusion : "最近训练记录到：“" + evidenceSummary + "”。" + conclusion;
+    }
+
+    private String resolveTrainingType(AbilityDimension dimension, List<AbilityEvidence> related) {
+        if (!dimension.general()) return dimension.sourceType();
+        return related.stream().findFirst().map(AbilityEvidence::sourceType).orElse("KNOWLEDGE");
+    }
+
+    private Map<String, Object> action(AbilityDimension dimension, String difficulty, int questionCount,
+                                       AbilityEvidence supporting) {
         Map<String, Object> action = new LinkedHashMap<>();
         action.put("dimensionCode", dimension.code());
-        action.put("difficulty", difficulty);
+        String observedDifficulty = supporting == null ? null : supporting.metadata().get("difficulty");
+        action.put("difficulty", observedDifficulty == null || observedDifficulty.isBlank()
+                ? difficulty : observedDifficulty.toLowerCase());
         action.put("questionCount", questionCount);
-        if ("KNOWLEDGE".equals(dimension.sourceType())) action.put("module", dimension.code().substring("KNOWLEDGE.".length()));
+        if ("KNOWLEDGE".equals(dimension.sourceType())) {
+            action.put("module", dimension.code().substring("KNOWLEDGE.".length()));
+        }
+        if (supporting != null && "PROJECT_DEEP_DIVE".equals(dimension.sourceType())) {
+            String profileId = supporting.metadata().get("projectProfileId");
+            if (profileId != null && profileId.matches("[1-9][0-9]*")) action.put("profileId", Long.valueOf(profileId));
+        }
+        if (supporting != null && "ALGORITHM".equals(dimension.sourceType())) {
+            String tags = supporting.metadata().get("tags");
+            if (tags != null && !tags.isBlank()) {
+                String tag = java.util.Arrays.stream(tags.split(","))
+                        .map(String::trim).filter(value -> !value.isBlank()).findFirst().orElse(null);
+                if (tag != null) action.put("tag", tag);
+            }
+        }
         return action;
     }
 
     private boolean isStale(AbilitySnapshot snapshot, LocalDateTime now) {
-        return snapshot.lastObservedAt() != null && Duration.between(snapshot.lastObservedAt(), now).toDays() > 90;
+        return snapshot.lastObservedAt() != null
+                && Duration.between(snapshot.lastObservedAt(), now).toDays() > 90;
     }
 
-    private record Candidate(int group, double score, LocalDateTime lastObserved, TrainingRecommendation.Item item) {}
+    private record Candidate(int group, double score, LocalDateTime lastObserved,
+                             TrainingRecommendation.Item item) {
+    }
 }

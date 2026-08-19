@@ -45,13 +45,24 @@ public enum AbilityDimension {
     public String sourceType() { return sourceType; }
     public boolean general() { return "GENERAL".equals(sourceType); }
 
+    public boolean core() {
+        return switch (this) {
+            case KNOWLEDGE_JAVA, KNOWLEDGE_MYSQL,
+                    PROJECT_OWNERSHIP, PROJECT_AUTHENTICITY, PROJECT_PRINCIPLE, PROJECT_TRADEOFF,
+                    ALGORITHM_CORRECTNESS, ALGORITHM_COMPLEXITY -> true;
+            default -> false;
+        };
+    }
+
     public static AbilityDimension fromCode(String code) {
         return Arrays.stream(values()).filter(item -> item.code.equalsIgnoreCase(code)).findFirst()
                 .orElseThrow(() -> new IllegalArgumentException("unknown ability dimension: " + code));
     }
 
     public static AbilityDimension fromKnowledgeModule(String module) {
-        if (module == null) return KNOWLEDGE_JAVA;
+        if (module == null || module.isBlank()) {
+            throw new IllegalArgumentException("knowledge module is missing");
+        }
         String raw = module.trim().toUpperCase(Locale.ROOT);
         if (raw.contains("计算机网络") || raw.equals("网络")) return KNOWLEDGE_NETWORK;
         if (raw.contains("操作系统")) return KNOWLEDGE_OS;
@@ -60,29 +71,36 @@ public enum AbilityDimension {
         if (raw.contains("SPRING")) return KNOWLEDGE_SPRING;
         if (raw.contains("JAVA")) return KNOWLEDGE_JAVA;
         String normalized = raw.replaceAll("[^A-Za-z]", "");
-        return KNOWLEDGE_MODULES.getOrDefault(normalized, KNOWLEDGE_JAVA);
+        AbilityDimension result = KNOWLEDGE_MODULES.get(normalized);
+        if (result == null) throw new IllegalArgumentException("unknown knowledge module: " + module);
+        return result;
     }
 
     public static AbilityDimension fromProjectDimension(String dimension) {
-        if (dimension == null) return PROJECT_PRINCIPLE;
+        if (dimension == null || dimension.isBlank()) {
+            throw new IllegalArgumentException("project dimension is missing");
+        }
         return switch (dimension.replaceAll("[_-]", "").toUpperCase(Locale.ROOT)) {
             case "OWNERSHIP" -> PROJECT_OWNERSHIP;
             case "AUTHENTICITY" -> PROJECT_AUTHENTICITY;
             case "PRINCIPLE", "TECHNICALDEPTH", "ENGINEERINGAWARENESS" -> PROJECT_PRINCIPLE;
             case "TRADEOFF", "TRADEOFFREASONING" -> PROJECT_TRADEOFF;
-            default -> GENERAL_ANSWER_STRUCTURE;
+            case "COMMUNICATION" -> GENERAL_ANSWER_STRUCTURE;
+            default -> throw new IllegalArgumentException("unknown project dimension: " + dimension);
         };
     }
 
     public static AbilityDimension fromAlgorithmDimension(String dimension) {
-        if (dimension == null) return ALGORITHM_COMMUNICATION;
+        if (dimension == null || dimension.isBlank()) {
+            throw new IllegalArgumentException("algorithm dimension is missing");
+        }
         return switch (dimension.replaceAll("[_-]", "").toLowerCase(Locale.ROOT)) {
-            case "correctness" -> ALGORITHM_CORRECTNESS;
+            case "correctness", "baselinesolution" -> ALGORITHM_CORRECTNESS;
             case "optimization" -> ALGORITHM_OPTIMIZATION;
             case "complexity" -> ALGORITHM_COMPLEXITY;
             case "edgecases", "edgecase" -> ALGORITHM_EDGE_CASE;
-            case "communication" -> ALGORITHM_COMMUNICATION;
-            default -> ALGORITHM_COMMUNICATION;
+            case "communication", "clarify", "followup" -> ALGORITHM_COMMUNICATION;
+            default -> throw new IllegalArgumentException("unknown algorithm dimension: " + dimension);
         };
     }
 }

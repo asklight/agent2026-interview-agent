@@ -460,6 +460,26 @@ class DeepDiveInterviewApplicationServiceTest {
         verify(interviews, never()).create(any(), anyList(), anyList(), anyInt(), anyString());
     }
 
+    @Test void projectInterviewPrioritizesTheRecommendedTargetDimension() {
+        ProjectClaim claim = new ProjectClaim(4L, 3L, ProjectClaimType.RESPONSIBILITY,
+                "负责核心模块", "负责核心模块", List.of(), List.of(),
+                ProjectClaimRiskLevel.MEDIUM, true, null);
+        when(profiles.findClaims(3L)).thenReturn(List.of(claim));
+        when(interviews.create(any(), anyList(), anyList(), eq(3), eq("TEXT"))).thenReturn(session);
+        CreateInterviewSessionParam param = new CreateInterviewSessionParam();
+        param.setMode("PROJECT_DEEP_DIVE");
+        param.setProjectProfileId(3L);
+        param.setMaxFollowUpsPerClaim(3);
+        param.setTargetDimension("PROJECT.TRADEOFF");
+        ArgumentCaptor<List<PlannedProbe>> probes = ArgumentCaptor.forClass(List.class);
+
+        service.create(param, "token");
+
+        verify(interviews).create(any(), eq(List.of(claim)), probes.capture(), eq(3), eq("TEXT"));
+        assertThat(probes.getValue()).extracting(PlannedProbe::dimension)
+                .containsExactly("TRADEOFF", "OWNERSHIP", "AUTHENTICITY", "PRINCIPLE");
+    }
+
     private InterviewTurn processingCandidate(String clientId, String content) {
         return new InterviewTurn(20L, 8L, 2, "CANDIDATE", "ANSWER", content, "TEXT", null, 4L,
                 "probe-1", "OWNERSHIP", "PROCESSING", LocalDateTime.now(), clientId, LocalDateTime.now(), null, LocalDateTime.now());

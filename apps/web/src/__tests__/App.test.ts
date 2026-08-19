@@ -46,4 +46,30 @@ describe('route lifecycle isolation', () => {
     expect(routes.find(route => route.name === 'project-interview-room')?.meta.remountOnPathChange).toBe(true)
     expect(routes.find(route => route.name === 'project-interview-report')?.meta.remountOnPathChange).toBe(true)
   })
+
+  it('passes the project recommendation dimension from query parameters into setup props', () => {
+    const routes = productionRouter.getRoutes()
+    const profileRoute = routes.find(route => route.name === 'project-deep-dive-profile')
+    const newRoute = routes.find(route => route.name === 'project-deep-dive-new')
+    const profileProps = profileRoute?.props.default
+    const newProps = newRoute?.props.default
+    type ProjectSetupRoute = {
+      params: { profileId: string }
+      query: { targetDimension: string }
+    }
+    const route: ProjectSetupRoute = {
+      params: { profileId: '27' },
+      query: { targetDimension: 'PROJECT.TRADEOFF' },
+    }
+
+    expect(typeof profileProps).toBe('function')
+    expect(typeof newProps).toBe('function')
+    expect((profileProps as (route: ProjectSetupRoute) => object)(route)).toEqual({
+      profileId: '27',
+      targetDimension: 'PROJECT.TRADEOFF',
+    })
+    expect((newProps as (route: ProjectSetupRoute) => object)(route)).toEqual({
+      targetDimension: 'PROJECT.TRADEOFF',
+    })
+  })
 })

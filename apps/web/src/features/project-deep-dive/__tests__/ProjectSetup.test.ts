@@ -4,7 +4,12 @@ import { flushPromises, shallowMount } from '@vue/test-utils'
 import ProjectSetup from '@/features/project-deep-dive/views/ProjectSetup.vue'
 import { useInterviewSessionStore } from '@/features/project-deep-dive/stores/interviewSession'
 import type { ProjectAnalysisStatus, ProjectProfile } from '@/features/project-deep-dive/model/types'
-import { analyzeProjectProfile, getProjectProfile } from '@/features/project-deep-dive/api/projectDeepDiveApi'
+import {
+  analyzeProjectProfile,
+  createProjectProfile,
+  getProjectProfile,
+} from '@/features/project-deep-dive/api/projectDeepDiveApi'
+import { createProjectInterview } from '@/features/project-deep-dive/api/interviewApi'
 
 const replace = vi.fn()
 const push = vi.fn()
@@ -69,12 +74,18 @@ function deferred<T>() {
   return { promise, resolve, reject }
 }
 
-function mountSetup(profileId: string) {
+function mountSetup(profileId?: string, targetDimension?: string | string[]) {
   return shallowMount(ProjectSetup, {
-    props: { profileId },
+    props: { profileId, targetDimension },
     global: {
       plugins: [pinia],
       stubs: {
+        ProjectDescriptionForm: {
+          name: 'ProjectDescriptionForm',
+          props: ['modelValue', 'loading'],
+          emits: ['update:modelValue', 'analyze'],
+          template: '<div data-testid="description-form"></div>',
+        },
         ProjectExtractionReview: {
           props: ['form', 'readonly'],
           template: '<div data-testid="review" :data-readonly="String(readonly)">{{ form.projectName }}</div>',
@@ -82,6 +93,9 @@ function mountSetup(profileId: string) {
         'el-button': {
           emits: ['click'],
           template: '<button @click="$emit(\'click\')"><slot /></button>',
+        },
+        'el-tag': {
+          template: '<span data-testid="target-dimension"><slot /></span>',
         },
       },
     },
@@ -164,6 +178,73 @@ describe('ProjectSetup recovery and route reuse', () => {
 
     expect(wrapper.get('[data-testid="review"]').attributes('data-readonly')).toBe('false')
     expect(wrapper.text()).toContain('确认并准备面试')
+  })
+
+  it('shows the recommended project dimension and sends it when creating the interview', async () => {
+    vi.mocked(getProjectProfile).mockResolvedValueOnce(response(profile(1, 'target project', 'READY')))
+    vi.mocked(createProjectInterview).mockResolvedValueOnce({
+      data: { data: { sessionId: 88 } },
+    } as never)
+    const wrapper = mountSetup('1', ' project.principle ')
+    await flushPromises()
+
+    expect(wrapper.get('[data-testid="target-dimension"]').text()).not.toBe('')
+
+    const buttons = wrapper.findAll('button')
+    await buttons[buttons.length - 1].trigger('click')
+    await flushPromises()
+
+    expect(createProjectInterview).toHaveBeenCalledWith({
+      mode: 'PROJECT_DEEP_DIVE',
+      projectProfileId: 1,
+      durationMinutes: 20,
+      maxFollowUpsPerClaim: 3,
+      inputModality: 'TEXT',
+      targetDimension: 'PROJECT.PRINCIPLE',
+    }, 'token-1')
+    expect(push).toHaveBeenCalledWith({
+      name: 'project-interview-room',
+      params: { sessionId: 88 },
+    })
+  })
+
+  it('keeps targetDimension from a new profile through interview creation', async () => {
+    vi.mocked(createProjectProfile).mockResolvedValueOnce({
+      data: { data: { profileId: 27, accessToken: 'token-27' } },
+    } as never)
+    vi.mocked(getProjectProfile).mockResolvedValue(response(profile(27, 'created project', 'READY')))
+    vi.mocked(analyzeProjectProfile).mockResolvedValue(response(profile(27, 'created project', 'READY')))
+    vi.mocked(createProjectInterview).mockResolvedValueOnce({
+      data: { data: { sessionId: 89 } },
+    } as never)
+
+    let wrapper!: ReturnType<typeof mountSetup>
+    replace.mockImplementationOnce(async () => {
+      await wrapper.setProps({ profileId: '27', targetDimension: 'PROJECT.TRADEOFF' })
+    })
+    wrapper = mountSetup(undefined, ' project.tradeoff ')
+
+    const form = wrapper.getComponent({ name: 'ProjectDescriptionForm' })
+    form.vm.$emit('update:modelValue', 'A detailed real project description long enough to analyze.')
+    await wrapper.vm.$nextTick()
+    form.vm.$emit('analyze')
+    await flushPromises()
+
+    expect(replace).toHaveBeenCalledWith({
+      name: 'project-deep-dive-profile',
+      params: { profileId: 27 },
+      query: { targetDimension: 'PROJECT.TRADEOFF' },
+    })
+    expect(wrapper.get('[data-testid="target-dimension"]').text()).not.toBe('')
+
+    const buttons = wrapper.findAll('button')
+    await buttons[buttons.length - 1].trigger('click')
+    await flushPromises()
+
+    expect(createProjectInterview).toHaveBeenCalledWith(expect.objectContaining({
+      projectProfileId: 27,
+      targetDimension: 'PROJECT.TRADEOFF',
+    }), 'token-27')
   })
 
   it('polls an in-progress analysis until the recovered result is ready', async () => {

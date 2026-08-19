@@ -5,28 +5,58 @@
       <p>八股用来快速校准知识，项目深挖用来练清楚真实经历。两种训练，各自保持合适的重量。</p>
     </header>
 
-    <section v-if="dashboard?.primary" class="agent-recommendation" aria-label="个性化训练推荐">
+    <section v-if="showRecommendation && primaryRecommendation" class="agent-recommendation" aria-label="个性化训练推荐">
       <div class="agent-recommendation__copy">
         <p class="page-kicker">PERSONAL TRAINING AGENT</p>
-        <h2>今天最值得练：{{ dashboard.primary.title }}</h2>
-        <span>{{ dashboard.primary.reason }}</span>
-        <small>预计 {{ dashboard.primary.estimatedMinutes }} 分钟 · 根据最近训练证据生成</small>
-        <div v-if="dashboard.focus.length" class="agent-focus">
-          <span>当前重点</span>
-          <em v-for="item in dashboard.focus" :key="item.dimensionCode">{{ item.label }}</em>
-        </div>
+        <h2>今天最值得练：{{ primaryRecommendation.title }}</h2>
+        <span>{{ primaryRecommendation.reason }}</span>
+        <small>预计 {{ primaryRecommendation.estimatedMinutes }} 分钟 · 根据最近训练表现生成</small>
       </div>
-      <RouterLink class="primary-link" :to="primaryPath">开始训练 <ArrowRight /></RouterLink>
+      <RouterLink class="primary-link" :to="recommendationTarget(primaryRecommendation)">查看训练配置 <ArrowRight /></RouterLink>
     </section>
-    <section v-else-if="dashboard?.state === 'COLD_START'" class="agent-recommendation agent-recommendation--cold" aria-label="开始训练提示">
+    <section v-else-if="agentState === 'COLD_START'" class="agent-recommendation agent-recommendation--cold" aria-label="开始训练提示">
       <div class="agent-recommendation__copy">
         <p class="page-kicker">PERSONAL TRAINING AGENT</p>
         <h2>先做一次基础校准</h2>
         <span>完成第一轮训练后，系统会根据你的真实表现安排下一步。</span>
       </div>
-      <RouterLink class="primary-link" to="/practice/knowledge">开始校准 <ArrowRight /></RouterLink>
+      <RouterLink class="primary-link" :to="coldStartTarget">设置校准训练 <ArrowRight /></RouterLink>
     </section>
-    <p v-if="dashboard?.degraded" class="agent-degraded">个性化推荐暂时不可用，四个训练模块仍可正常使用。</p>
+    <p v-if="agentState === 'DEGRADED' || agentState === 'FAILED'" class="agent-degraded" role="status">
+      {{ degradedMessage }}
+    </p>
+
+    <section v-if="showOverview" class="agent-overview" aria-label="训练概览">
+      <div class="agent-overview__section">
+        <p class="page-kicker">CURRENT FOCUS</p>
+        <h2>当前训练重点</h2>
+        <ul v-if="focusDimensions.length" class="agent-focus-list">
+          <li v-for="item in focusDimensions" :key="item.dimensionCode">
+            <strong>{{ item.label }}</strong><span>{{ abilityStateLabel(item.abilityState) }}</span>
+          </li>
+        </ul>
+        <p v-else class="agent-overview__empty">继续完成一轮训练后，这里会沉淀新的训练重点。</p>
+      </div>
+
+      <div class="agent-overview__section">
+        <p class="page-kicker">RECENT PROGRESS</p>
+        <h2>最近进展</h2>
+        <div v-if="dashboard?.recentProgress" class="agent-progress">
+          <strong>{{ dashboard.recentProgress.label }}</strong>
+          <p>{{ progressMessage(dashboard.recentProgress.label, dashboard.recentProgress.abilityState) }}</p>
+        </div>
+        <p v-else class="agent-overview__empty">还没有形成可展示的近期进展，完成下一轮训练后会自动更新。</p>
+      </div>
+
+      <div v-if="alternativeRecommendations.length" class="agent-overview__section agent-overview__section--alternatives">
+        <p class="page-kicker">OTHER OPTIONS</p>
+        <h2>也可以练</h2>
+        <RouterLink v-for="item in alternativeRecommendations" :key="`${item.trainingType}:${item.dimensionCode}`"
+          class="agent-alternative" :to="recommendationTarget(item)">
+          <span><strong>{{ item.title }}</strong><small>约 {{ item.estimatedMinutes }} 分钟</small></span><ArrowRight />
+        </RouterLink>
+      </div>
+    </section>
 
     <section class="training-entry-list" aria-label="训练模块">
       <RouterLink class="training-entry" to="/practice/knowledge">
@@ -76,21 +106,63 @@ import { computed, onMounted, ref } from 'vue'
 import { RouterLink } from 'vue-router'
 import { ArrowRight, Briefcase, Collection, DataAnalysis, VideoCamera } from '@element-plus/icons-vue'
 import { getTrainingAgentDashboard, type TrainingAgentDashboard } from '@/features/training-agent/api/trainingAgentApi'
+import { coldStartTarget, recommendationTarget } from '@/features/training-agent/model/recommendationNavigation'
 
 const dashboard = ref<TrainingAgentDashboard | null>(null)
-const primaryPath = computed(() => {
-  const type = dashboard.value?.primary?.trainingType
-  if (type === 'PROJECT_DEEP_DIVE') return '/project-deep-dive'
-  if (type === 'ALGORITHM') return '/practice/algorithm'
-  if (type === 'COMPREHENSIVE_SIMULATION') return '/simulation/new'
-  return '/practice/knowledge'
+const dashboardLoading = ref(true)
+const requestFailed = ref(false)
+
+const agentState = computed(() => {
+  if (dashboardLoading.value) return 'LOADING'
+  if (requestFailed.value || !dashboard.value) return 'FAILED'
+  if (!dashboard.value.enabled || dashboard.value.state === 'DISABLED') return 'DISABLED'
+  if (dashboard.value.degraded || dashboard.value.state === 'DEGRADED') return 'DEGRADED'
+  if (dashboard.value.state === 'COLD_START') return 'COLD_START'
+  if (dashboard.value.state === 'READY') return dashboard.value.primaryRecommendation ? 'READY' : 'DEGRADED'
+  return 'FAILED'
 })
+const primaryRecommendation = computed(() => dashboard.value?.primaryRecommendation ?? null)
+const showRecommendation = computed(() => Boolean(primaryRecommendation.value
+  && (agentState.value === 'READY' || agentState.value === 'DEGRADED')))
+const showOverview = computed(() => showRecommendation.value)
+const focusDimensions = computed(() => (dashboard.value?.focusDimensions ?? []).slice(0, 3))
+const alternativeRecommendations = computed(() => {
+  const primaryType = primaryRecommendation.value?.trainingType
+  return (dashboard.value?.alternatives ?? [])
+    .filter(item => item.trainingType !== primaryType)
+    .slice(0, 2)
+})
+const degradedMessage = computed(() => {
+  if (requestFailed.value) return '个性化推荐暂时没有连接上，四个训练模块仍可正常使用。'
+  if (primaryRecommendation.value) return '推荐同步暂时延迟，当前展示最近一次可用建议。'
+  return '个性化推荐暂时不可用，四个训练模块仍可正常使用。'
+})
+
+function abilityStateLabel(state: string) {
+  return {
+    NEEDS_WORK: '优先补强',
+    DEVELOPING: '继续发展',
+    STABLE: '保持状态',
+    STRONG: '近期表现稳定',
+    UNKNOWN: '等待校准',
+  }[state] ?? '持续观察'
+}
+
+function progressMessage(label: string, state: string) {
+  if (state === 'STRONG') return `“${label}”在近期训练中表现稳定，可以继续保持。`
+  if (state === 'STABLE') return `“${label}”已经形成较稳定的表现。`
+  if (state === 'DEVELOPING') return `“${label}”正在形成更完整的回答结构。`
+  if (state === 'NEEDS_WORK') return `已经识别出“${label}”的明确改进方向。`
+  return `“${label}”已经获得新的训练记录。`
+}
 
 onMounted(async () => {
   try {
     dashboard.value = (await getTrainingAgentDashboard()).data.data
   } catch {
-    // 首页不因推荐服务故障而阻塞四个训练入口。
+    requestFailed.value = true
+  } finally {
+    dashboardLoading.value = false
   }
 })
 </script>

@@ -12,17 +12,40 @@ public class ProjectInterviewPlanner {
             List.of("OWNERSHIP", "AUTHENTICITY", "PRINCIPLE", "TRADEOFF");
 
     public List<PlannedProbe> createPlan(List<ProjectClaim> claims) {
+        return createPlan(claims, null);
+    }
+
+    public List<PlannedProbe> createPlan(List<ProjectClaim> claims, String targetDimension) {
         if (claims == null || claims.isEmpty()) {
             throw new IllegalArgumentException("confirmed claims are required");
         }
+        List<String> dimensions = prioritizedDimensions(targetDimension);
         List<PlannedProbe> probes = new ArrayList<>();
-        for (int i = 0; i < REQUIRED_DIMENSIONS.size(); i++) {
+        for (int i = 0; i < dimensions.size(); i++) {
             ProjectClaim claim = claims.get(Math.min(i, claims.size() - 1));
-            String dimension = REQUIRED_DIMENSIONS.get(i);
+            String dimension = dimensions.get(i);
             probes.add(new PlannedProbe("probe-" + (i + 1), claim.id(), dimension,
                     objective(dimension, claim.statement())));
         }
         return List.copyOf(probes);
+    }
+
+    private List<String> prioritizedDimensions(String targetDimension) {
+        if (targetDimension == null || targetDimension.isBlank()) return REQUIRED_DIMENSIONS;
+        String normalized = targetDimension.trim().toUpperCase(java.util.Locale.ROOT)
+                .replace("PROJECT.", "").replace("_", "").replace("-", "");
+        String target = switch (normalized) {
+            case "OWNERSHIP" -> "OWNERSHIP";
+            case "AUTHENTICITY" -> "AUTHENTICITY";
+            case "PRINCIPLE", "TECHNICALDEPTH" -> "PRINCIPLE";
+            case "TRADEOFF", "TRADEOFFREASONING" -> "TRADEOFF";
+            default -> null;
+        };
+        if (target == null) return REQUIRED_DIMENSIONS;
+        List<String> ordered = new ArrayList<>();
+        ordered.add(target);
+        REQUIRED_DIMENSIONS.stream().filter(value -> !value.equals(target)).forEach(ordered::add);
+        return List.copyOf(ordered);
     }
 
     private String objective(String dimension, String claim) {

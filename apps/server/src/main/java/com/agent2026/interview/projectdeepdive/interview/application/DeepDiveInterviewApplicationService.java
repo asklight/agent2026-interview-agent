@@ -27,6 +27,7 @@ import com.agent2026.interview.projectdeepdive.report.api.ProjectInterviewReport
 import com.agent2026.interview.projectdeepdive.report.application.ProjectInterviewReportService;
 import com.agent2026.interview.identity.application.ResourceOwnershipService;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
@@ -44,6 +45,12 @@ public class DeepDiveInterviewApplicationService {
     private final ResourceTokenService tokenService;
     private final ProjectInterviewReportService reportService;
     private final ResourceOwnershipService ownershipService;
+    private ApplicationEventPublisher events;
+
+    @Autowired(required = false)
+    void setEvents(ApplicationEventPublisher events) {
+        this.events = events;
+    }
 
     @Autowired
     public DeepDiveInterviewApplicationService(ProjectProfileRepository profileRepository,
@@ -80,7 +87,7 @@ public class DeepDiveInterviewApplicationService {
         if (maxFollowUps < 2) throw new BusinessException(ErrorCode.PARAM_INVALID,
                 "项目深挖至少需要允许 2 次追问");
         String modality = normalizeModality(param.getInputModality());
-        List<PlannedProbe> probes = planner.createPlan(claims);
+        List<PlannedProbe> probes = planner.createPlan(claims, param.getTargetDimension());
         InterviewSession session = interviewRepository.create(profile, claims, probes, maxFollowUps, modality);
         if (ownershipService != null) ownershipService.attachInterviewToCurrentUser(session.getId());
         return response(session, interviewRepository.findPlan(session.getId()), interviewRepository.findTurns(session.getId()));
@@ -96,7 +103,10 @@ public class DeepDiveInterviewApplicationService {
         String clientTurnId = request.clientTurnId().trim();
         InterviewTurn existing = interviewRepository.findByClientTurnId(sessionId, clientTurnId).orElse(null);
         if (existing != null && "COMPLETED".equals(existing.processingStatus())) {
-            if ("FINISHED".equals(session.getStatus())) reportService.generateIfAbsent(sessionId);
+            if ("FINISHED".equals(session.getStatus())) {
+                reportService.generateIfAbsent(sessionId);
+                publishCompleted(session);
+            }
             return getTurns(sessionId, token);
         }
         if (!"IN_PROGRESS".equals(session.getStatus())) {
@@ -170,7 +180,10 @@ public class DeepDiveInterviewApplicationService {
             InterviewSession persistedSession = interviewRepository.findSession(sessionId).orElseThrow();
             shouldGenerateReport = "FINISHED".equals(persistedSession.getStatus());
         }
-        if (shouldGenerateReport) reportService.generateIfAbsent(sessionId);
+        if (shouldGenerateReport) {
+            reportService.generateIfAbsent(sessionId);
+            publishCompleted(interviewRepository.findSession(sessionId).orElse(session));
+        }
         return getTurns(sessionId, token);
     }
 
@@ -192,7 +205,15 @@ public class DeepDiveInterviewApplicationService {
         if (session == null) throw new BusinessException(ErrorCode.INTERVIEW_TURN_PROCESSING,
                 "当前回答尚未处理完成，暂时不能结束面试");
         reportService.generateIfAbsent(sessionId);
+        publishCompleted(session);
         return response(session, interviewRepository.findPlan(sessionId), interviewRepository.findTurns(sessionId));
+    }
+
+    private void publishCompleted(InterviewSession session) {
+        if (events == null || session == null || session.getUserId() == null) return;
+        events.publishEvent(new com.agent2026.interview.shared.training.TrainingCompletedEvent(
+                session.getUserId(), "PROJECT_DEEP_DIVE", session.getId(), 1,
+                session.getEndTime() == null ? LocalDateTime.now() : session.getEndTime()));
     }
 
     public ProjectInterviewReportResponse getReport(Long sessionId, String token) {

@@ -21,11 +21,25 @@ spring:
 
 training-agent:
   enabled: ${TRAINING_AGENT_ENABLED:true}
-  max-source-sync: ${TRAINING_AGENT_MAX_SOURCE_SYNC:100}
+  max-source-sync: ${TRAINING_AGENT_MAX_SOURCE_SYNC:10}
+  recovery:
+    batch-size: ${TRAINING_AGENT_RECOVERY_BATCH_SIZE:100}
+    delay-ms: ${TRAINING_AGENT_RECOVERY_DELAY_MS:60000}
+    initial-delay-ms: ${TRAINING_AGENT_RECOVERY_INITIAL_DELAY_MS:15000}
 
 logging:
   level:
     com.agent2026.interview: info
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,metrics
+  endpoint:
+    health:
+      show-details: never
+      show-components: never
 
 rag-toolkit:
   enabled: ${RAG_TOOLKIT_ENABLED:false}

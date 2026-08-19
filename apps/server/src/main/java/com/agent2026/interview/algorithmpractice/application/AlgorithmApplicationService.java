@@ -20,6 +20,8 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.stereotype.Service;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.ApplicationEventPublisher;
 
 import java.time.LocalDateTime;
 import java.util.Arrays;
@@ -33,6 +35,12 @@ public class AlgorithmApplicationService {
     private final AlgorithmTurnEvaluator evaluator;
     private final AlgorithmReportService reports;
     private final ObjectMapper objectMapper;
+    private ApplicationEventPublisher events;
+
+    @Autowired(required = false)
+    void setEvents(ApplicationEventPublisher events) {
+        this.events = events;
+    }
 
     public AlgorithmApplicationService(AlgorithmProblemMapper problems, AlgorithmPersistenceService persistence,
                                        AlgorithmTurnEvaluator evaluator, AlgorithmReportService reports,
@@ -93,7 +101,10 @@ public class AlgorithmApplicationService {
         AlgorithmStage next = stage.next();
         persistence.complete(sessionId, claim.turn().getId(), evaluation, next,
                 next.interviewerPrompt(next == AlgorithmStage.FOLLOW_UP ? evaluation.suggestedFollowUp() : null));
-        if (next == AlgorithmStage.FINISHED) reports.generateIfAbsent(sessionId);
+        if (next == AlgorithmStage.FINISHED) {
+            reports.generateIfAbsent(sessionId);
+            publishCompleted(userId, sessionId);
+        }
         return get(userId, sessionId);
     }
 
@@ -113,7 +124,14 @@ public class AlgorithmApplicationService {
     public AlgorithmSessionResponse finish(Long userId, Long sessionId) {
         AlgorithmSessionEntity session = persistence.finish(sessionId, userId);
         reports.generateIfAbsent(sessionId);
+        publishCompleted(userId, sessionId);
         return response(session, persistence.requireProblem(session.getProblemId()), persistence.turns(sessionId));
+    }
+
+    private void publishCompleted(Long userId, Long sessionId) {
+        if (events == null || userId == null) return;
+        events.publishEvent(new com.agent2026.interview.shared.training.TrainingCompletedEvent(
+                userId, "ALGORITHM", sessionId, 1, LocalDateTime.now()));
     }
 
     public AlgorithmReportResponse report(Long userId, Long sessionId) {

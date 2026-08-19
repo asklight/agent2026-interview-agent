@@ -25,6 +25,7 @@ public class CreateInterviewSessionParam {
     private Integer maxFollowUpsPerClaim = 3;
 
     private String inputModality = "TEXT";
+    private String targetDimension;
 
     public String getMode() { return mode; }
     public void setMode(String mode) { this.mode = mode; }
@@ -61,4 +62,6 @@ public class CreateInterviewSessionParam {
     public void setMaxFollowUpsPerClaim(Integer maxFollowUpsPerClaim) { this.maxFollowUpsPerClaim = maxFollowUpsPerClaim; }
     public String getInputModality() { return inputModality; }
     public void setInputModality(String inputModality) { this.inputModality = inputModality; }
+    public String getTargetDimension() { return targetDimension; }
+    public void setTargetDimension(String targetDimension) { this.targetDimension = targetDimension; }
 }

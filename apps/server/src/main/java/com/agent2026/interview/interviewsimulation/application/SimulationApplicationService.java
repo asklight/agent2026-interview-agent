@@ -28,6 +28,8 @@ import com.agent2026.interview.shared.error.ErrorCode;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.stereotype.Service;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
@@ -56,6 +58,12 @@ public class SimulationApplicationService {
     private final InterviewSessionMapper interviewSessions;
     private final AlgorithmSessionMapper algorithmSessions;
     private final ObjectMapper json;
+    private ApplicationEventPublisher events;
+
+    @Autowired(required = false)
+    void setEvents(ApplicationEventPublisher events) {
+        this.events = events;
+    }
 
     public SimulationApplicationService(SimulationSessionMapper sessions,
                                         SimulationStageMapper stages,
@@ -211,6 +219,7 @@ public class SimulationApplicationService {
         if (sessions.advance(id, userId, expectedVersion, current.name(), next.name()) != 1) {
             throw new BusinessException(ErrorCode.SIMULATION_STATE_CONFLICT);
         }
+        if (next == SimulationStageType.FINISHED) publishCompleted(userId, id);
         return get(id, userId);
     }
 
@@ -228,7 +237,14 @@ public class SimulationApplicationService {
         if (sessions.advance(id, userId, expectedVersion, current.name(), SimulationStageType.FINISHED.name()) != 1) {
             throw new BusinessException(ErrorCode.SIMULATION_STATE_CONFLICT);
         }
+        publishCompleted(userId, id);
         return get(id, userId);
+    }
+
+    private void publishCompleted(Long userId, Long simulationId) {
+        if (events == null || userId == null) return;
+        events.publishEvent(new com.agent2026.interview.shared.training.TrainingCompletedEvent(
+                userId, "COMPREHENSIVE_SIMULATION", simulationId, 1, LocalDateTime.now()));
     }
 
     public SimulationReportResponse report(Long id, Long userId) {
